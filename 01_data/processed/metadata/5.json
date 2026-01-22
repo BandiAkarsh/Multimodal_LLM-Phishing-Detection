@@ -1,0 +1,38 @@
+{
+  "idx": 5,
+  "url": "https://ppt.cc/firTBx",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/5.png",
+  "html_path": "01_data/processed/html/5.html",
+  "dom_structure": {
+    "num_forms": 1,
+    "num_inputs": 5,
+    "num_links": 5,
+    "num_images": 2,
+    "num_scripts": 3,
+    "num_iframes": 0,
+    "has_login_form": false,
+    "title": "\u4f86\u500b PPT \u77ed\u7db2\u5740 [\u6388\u6b0a\u9801\u9762]",
+    "meta_tags": 2
+  },
+  "url_features": {
+    "url_length": 21,
+    "domain_length": 3,
+    "path_length": 7,
+    "num_dots": 1,
+    "num_hyphens": 0,
+    "num_underscores": 0,
+    "num_slashes": 3,
+    "num_question_marks": 0,
+    "num_equals": 0,
+    "num_at": 0,
+    "num_ampersand": 0,
+    "num_digits": 0,
+    "is_https": 1,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 0,
+    "has_suspicious_words": 0,
+    "entropy": 3.617809684374455
+  }
+}

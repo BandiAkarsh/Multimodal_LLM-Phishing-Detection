@@ -1,0 +1,38 @@
+{
+  "idx": 1,
+  "url": "http://awin1.com/cread.php?awinmid=10178&awinaffid=346289&clickref&p=https://qrco.de/server-side",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/1.png",
+  "html_path": "01_data/processed/html/1.html",
+  "dom_structure": {
+    "num_forms": 3,
+    "num_inputs": 20,
+    "num_links": 1358,
+    "num_images": 486,
+    "num_scripts": 44,
+    "num_iframes": 3,
+    "has_login_form": false,
+    "title": "Twoja drogeria internetowa - eKobieca.pl",
+    "meta_tags": 25
+  },
+  "url_features": {
+    "url_length": 96,
+    "domain_length": 5,
+    "path_length": 10,
+    "num_dots": 3,
+    "num_hyphens": 1,
+    "num_underscores": 0,
+    "num_slashes": 6,
+    "num_question_marks": 1,
+    "num_equals": 3,
+    "num_at": 0,
+    "num_ampersand": 3,
+    "num_digits": 12,
+    "is_https": 0,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 0,
+    "has_suspicious_words": 0,
+    "entropy": 4.840033080359569
+  }
+}

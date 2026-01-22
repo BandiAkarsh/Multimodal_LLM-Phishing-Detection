@@ -1,0 +1,38 @@
+{
+  "idx": 3,
+  "url": "https://docs.google.com/presentation/d/e/2PACX-1vRgWEDOvXaO8OTnTp2sIU7o8NoQyG8RSZESDGax40YD_THxwOs180cpy_MQyL3Rn5_muAoT_Jtn23dc/pub?start=false&amp;loop=false&amp;delayms=3000",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/3.png",
+  "html_path": "01_data/processed/html/3.html",
+  "dom_structure": {
+    "num_forms": 0,
+    "num_inputs": 0,
+    "num_links": 1,
+    "num_images": 0,
+    "num_scripts": 22,
+    "num_iframes": 0,
+    "has_login_form": false,
+    "title": "WELCOME - Google Slides",
+    "meta_tags": 15
+  },
+  "url_features": {
+    "url_length": 175,
+    "domain_length": 6,
+    "path_length": 108,
+    "num_dots": 2,
+    "num_hyphens": 1,
+    "num_underscores": 4,
+    "num_slashes": 7,
+    "num_question_marks": 1,
+    "num_equals": 3,
+    "num_at": 0,
+    "num_ampersand": 2,
+    "num_digits": 20,
+    "is_https": 1,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 1,
+    "has_suspicious_words": 0,
+    "entropy": 5.5414952761250555
+  }
+}

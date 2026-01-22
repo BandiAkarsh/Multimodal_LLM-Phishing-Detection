@@ -1,0 +1,38 @@
+{
+  "idx": 6,
+  "url": "http://loggm.ukit.me/",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/6.png",
+  "html_path": "01_data/processed/html/6.html",
+  "dom_structure": {
+    "num_forms": 0,
+    "num_inputs": 0,
+    "num_links": 1,
+    "num_images": 2,
+    "num_scripts": 10,
+    "num_iframes": 0,
+    "has_login_form": false,
+    "title": "\n\t\t\tuKit \u2014 Website's trial period has expired\n\t\t",
+    "meta_tags": 4
+  },
+  "url_features": {
+    "url_length": 21,
+    "domain_length": 4,
+    "path_length": 1,
+    "num_dots": 2,
+    "num_hyphens": 0,
+    "num_underscores": 0,
+    "num_slashes": 3,
+    "num_question_marks": 0,
+    "num_equals": 0,
+    "num_at": 0,
+    "num_ampersand": 0,
+    "num_digits": 0,
+    "is_https": 0,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 1,
+    "has_suspicious_words": 0,
+    "entropy": 3.653756708287001
+  }
+}

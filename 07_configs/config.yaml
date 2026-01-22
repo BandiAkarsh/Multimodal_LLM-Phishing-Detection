@@ -9,7 +9,10 @@ data:
   processed_dir: "./01_data/processed"
   splits_dir: "./01_data/splits"
   dataset_size: 1000
-  sample_ratio: 0.7
+  timeout: 30000
+  headless: true
+  screenshot_size: [1920, 1080]
+  model: "Qwen2.5-3B-Instruct"
 
 models:
   llm:

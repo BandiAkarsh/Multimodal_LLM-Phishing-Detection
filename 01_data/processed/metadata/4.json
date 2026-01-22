@@ -1,0 +1,38 @@
+{
+  "idx": 4,
+  "url": "https://l.wl.co/l?u=https://ungu.in/ehu4ert5h5e4ryh5hhb",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/4.png",
+  "html_path": "01_data/processed/html/4.html",
+  "dom_structure": {
+    "num_forms": 0,
+    "num_inputs": 0,
+    "num_links": 1,
+    "num_images": 1,
+    "num_scripts": 5,
+    "num_iframes": 0,
+    "has_login_form": false,
+    "title": "Ungu.in - Ubah Tautan Menjadi Senyuman",
+    "meta_tags": 16
+  },
+  "url_features": {
+    "url_length": 55,
+    "domain_length": 2,
+    "path_length": 2,
+    "num_dots": 3,
+    "num_hyphens": 0,
+    "num_underscores": 0,
+    "num_slashes": 6,
+    "num_question_marks": 1,
+    "num_equals": 1,
+    "num_at": 0,
+    "num_ampersand": 0,
+    "num_digits": 5,
+    "is_https": 1,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 1,
+    "has_suspicious_words": 0,
+    "entropy": 4.221533350946099
+  }
+}

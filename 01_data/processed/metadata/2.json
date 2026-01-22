@@ -1,0 +1,38 @@
+{
+  "idx": 2,
+  "url": "https://www.dropbox.com/scl/fi/llqgt0c8t9gg1y4spl880/ADI_EA_FINAL.docx?rlkey=mhb1khiprij18ixl4dsd5xo6g&st=4ejrvttu&dl=0",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/2.png",
+  "html_path": "01_data/processed/html/2.html",
+  "dom_structure": {
+    "num_forms": 0,
+    "num_inputs": 0,
+    "num_links": 3,
+    "num_images": 1,
+    "num_scripts": 274,
+    "num_iframes": 1,
+    "has_login_form": false,
+    "title": "ADI_EA_FINAL.docx",
+    "meta_tags": 31
+  },
+  "url_features": {
+    "url_length": 119,
+    "domain_length": 7,
+    "path_length": 47,
+    "num_dots": 3,
+    "num_hyphens": 0,
+    "num_underscores": 2,
+    "num_slashes": 6,
+    "num_question_marks": 1,
+    "num_equals": 3,
+    "num_at": 0,
+    "num_ampersand": 2,
+    "num_digits": 16,
+    "is_https": 1,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 1,
+    "has_suspicious_words": 0,
+    "entropy": 5.200021415797427
+  }
+}

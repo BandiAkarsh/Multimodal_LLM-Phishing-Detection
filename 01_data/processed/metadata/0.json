@@ -1,0 +1,38 @@
+{
+  "idx": 0,
+  "url": "https://qrco.de/JABgNaFsAAw2fwSvM3S3gx7oQIqeLRBK",
+  "label": 1,
+  "screenshot_path": "01_data/processed/screenshots/0.png",
+  "html_path": "01_data/processed/html/0.html",
+  "dom_structure": {
+    "num_forms": 0,
+    "num_inputs": 0,
+    "num_links": 0,
+    "num_images": 0,
+    "num_scripts": 1,
+    "num_iframes": 0,
+    "has_login_form": false,
+    "title": "",
+    "meta_tags": 7
+  },
+  "url_features": {
+    "url_length": 48,
+    "domain_length": 4,
+    "path_length": 33,
+    "num_dots": 1,
+    "num_hyphens": 0,
+    "num_underscores": 0,
+    "num_slashes": 3,
+    "num_question_marks": 0,
+    "num_equals": 0,
+    "num_at": 0,
+    "num_ampersand": 0,
+    "num_digits": 4,
+    "is_https": 1,
+    "has_port": 0,
+    "is_ip_address": 0,
+    "subdomain_count": 0,
+    "has_suspicious_words": 0,
+    "entropy": 4.970175521464345
+  }
+}

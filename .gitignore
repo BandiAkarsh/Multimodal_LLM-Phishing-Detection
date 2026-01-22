@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data (large files - consider using Git LFS)
+01_data/processed/screenshots/*.png
+01_data/processed/html/*.html
+01_data/raw/*.csv
+01_data/raw/*.txt
+
+# Models
+02_models/
+.cache/
+
+# Logs
+08_logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
