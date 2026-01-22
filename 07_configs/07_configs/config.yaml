@@ -1,0 +1,36 @@
+# config/config.yaml
+project:
+  name: "MultimodalPhishingDetector"
+  version: "1.0"
+  description: "IEEE-level phishing detection using multimodal LLMs"
+
+data:
+  raw_dir: "./01_data/raw"
+  processed_dir: "./01_data/processed"
+  splits_dir: "./01_data/splits"
+  dataset_size: 1000
+  sample_ratio: 0.7
+
+models:
+  llm:
+    name: "Qwen/Qwen2.5-3B-Instruct"
+    device: "cuda"
+    max_length: 512
+  visual_encoder:
+    name: "openai/clip-vit-base-patch32"
+  text_encoder:
+    name: "bert-base-uncased"
+  url_encoder:
+    name: "url_feature_extractor"
+
+training:
+  batch_size: 8
+  epochs: 10
+  learning_rate: 1e-5
+  device: "cuda"
+  log_dir: "./08_logs"
+  checkpoint_dir: "./02_models/checkpoints"
+
+inference:
+  service_port: 8000
+  model_path: "./02_models/final_model.pth"
