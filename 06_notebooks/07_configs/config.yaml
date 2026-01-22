@@ -5,7 +5,7 @@ project:
   description: "IEEE-level phishing detection using multimodal LLMs"
 
 data:
-  raw_dir: "./01_data/raw"
+  raw_dir: "~/phishing_detection_project/01_data/raw"
   processed_dir: "./01_data/processed"
   splits_dir: "./01_data/splits"
   dataset_size: 1000
