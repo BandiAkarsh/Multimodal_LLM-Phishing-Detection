@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
-from scraper import WebScraper
+from web_scraper import WebScraper
 from feature_extraction import URLFeatureExtractor
 
 class DataPreprocessor:
