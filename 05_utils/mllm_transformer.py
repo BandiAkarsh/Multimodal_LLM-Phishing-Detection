@@ -59,10 +59,14 @@ class MLLMFeatureTransformer:
     def _create_prompt(self, metadata):
         # Create structured prompt from metadata
         url = metadata.get('url', 'N/A')
-        features = metadata.get('features', {})
-        html_summary = metadata.get('html_summary', 'N/A')
+        features = metadata.get('url_features', metadata.get('features', {}))
+        html_summary = metadata.get('dom_structure', metadata.get('html_summary', 'N/A'))
         
         feature_desc = "\n".join([f"- {k}: {v}" for k, v in features.items()])
+        if isinstance(html_summary, dict):
+            html_desc = "\n".join([f"- {k}: {v}" for k, v in html_summary.items()])
+        else:
+            html_desc = str(html_summary)
         
         prompt = f"""
 Analyze the following website data for potential phishing indicators:
@@ -73,7 +77,7 @@ Extracted Features:
 {feature_desc}
 
 HTML Content Summary:
-{html_summary}
+{html_desc}
 
 Based on these features, describe the website's characteristics. Is it suspicious? If so, why? 
 Provide a comprehensive description that highlights anomalies in the URL structure, domain features, or content.
