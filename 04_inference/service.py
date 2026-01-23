@@ -106,9 +106,13 @@ class PhishingDetectionService:
             
         # Suspicious patterns
         if features.get('is_ip_address', 0):
-            score += 25
-        if features.get('has_suspicious_words', 0) > 0:
-            score += 20
+            score += 30
+        
+        # Suspicious words (each word adds risk)
+        suspicious_count = features.get('has_suspicious_words', 0)
+        if suspicious_count > 0:
+            score += min(40, suspicious_count * 10)  # Up to 40 points
+            
         if not features.get('is_https', 0):
             score += 15
             
@@ -119,11 +123,11 @@ class PhishingDetectionService:
             
         # Character-based risks
         if features.get('num_hyphens', 0) > 3:
-            score += 10
+            score += 15
         if features.get('subdomain_count', 0) > 2:
-            score += 10
+            score += 15
         if features.get('num_at', 0) > 0:
-            score += 20
+            score += 25
             
         return min(100, score)
     
