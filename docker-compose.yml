@@ -1,0 +1,52 @@
+# Phishing Detection System - Docker Compose
+# Multi-container setup for production deployment
+
+version: '3.8'
+
+services:
+  # Main API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - LOAD_MLLM=false
+      - PORT=8000
+    volumes:
+      - ./02_models:/app/02_models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Redis Cache (for production)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # Nginx Load Balancer (optional, for scaling)
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - api
+  #   restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: phishing_detection_network
