@@ -25,6 +25,11 @@ class TextFeatureGenerator:
                 metadata = json.load(f)
             
             idx = metadata.get('idx')
+            output_path = self.output_dir / f"{idx}_mllm.json"
+            
+            # Skip if already exists (Resumable)
+            if output_path.exists():
+                continue
             
             try:
                 # Generate text description
