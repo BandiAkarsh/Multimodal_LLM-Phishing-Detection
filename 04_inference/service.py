@@ -17,9 +17,11 @@ def load_module(name, path):
 
 feature_extraction = load_module('feature_extraction', os.path.join(project_root, '05_utils/feature_extraction.py'))
 mllm_transformer = load_module('mllm_transformer', os.path.join(project_root, '05_utils/mllm_transformer.py'))
+typosquatting_detector = load_module('typosquatting_detector', os.path.join(project_root, '05_utils/typosquatting_detector.py'))
 
 URLFeatureExtractor = feature_extraction.URLFeatureExtractor
 MLLMFeatureTransformer = mllm_transformer.MLLMFeatureTransformer
+TyposquattingDetector = typosquatting_detector.TyposquattingDetector
 
 class PhishingDetectionService:
     """
@@ -29,6 +31,7 @@ class PhishingDetectionService:
     
     def __init__(self, load_mllm=True):
         self.url_extractor = URLFeatureExtractor()
+        self.typosquatting_detector = TyposquattingDetector()
         self.mllm_transformer = None
         self.model_loaded = False
         
@@ -52,30 +55,41 @@ class PhishingDetectionService:
         # Step 1: Extract URL features
         url_features = self.url_extractor.extract_features(url)
         
-        # Step 2: Create metadata for MLLM
+        # Step 2: Check for typosquatting/brand impersonation
+        typosquat_result = self.typosquatting_detector.analyze(url)
+        
+        # Step 3: Create metadata for MLLM
         metadata = {
             'url': url,
             'url_features': url_features,
+            'typosquatting': typosquat_result,
             'dom_structure': {}  # Would come from web scraper in production
         }
         
-        # Step 3: Generate text description using MLLM
+        # Step 4: Generate text description using MLLM
         if self.mllm_transformer:
             try:
                 text_description = self.mllm_transformer.transform_to_text(metadata)
             except Exception as e:
                 text_description = f"Analysis failed: {e}"
         else:
-            text_description = self._generate_rule_based_analysis(url_features)
+            text_description = self._generate_rule_based_analysis(url_features, typosquat_result)
         
-        # Step 4: Calculate risk score based on features
-        risk_score = self._calculate_risk_score(url_features)
+        # Step 5: Calculate risk score based on features + typosquatting
+        risk_score = self._calculate_risk_score(url_features, typosquat_result)
         
-        # Step 5: Determine classification
-        if risk_score >= 70:
+        # Step 6: Determine classification
+        # If typosquatting detected, it's almost certainly phishing
+        if typosquat_result.get('is_typosquatting'):
+            classification = "phishing"
+            if risk_score >= 50:
+                recommended_action = "block"
+            else:
+                recommended_action = "warn"
+        elif risk_score >= 70:
             classification = "phishing"
             recommended_action = "block"
-        elif risk_score >= 40:
+        elif risk_score >= 35:
             classification = "phishing"
             recommended_action = "warn"
         else:
@@ -83,6 +97,9 @@ class PhishingDetectionService:
             recommended_action = "allow"
         
         confidence = min(0.95, 0.5 + (risk_score / 200))
+        
+        # Add typosquatting info to features
+        url_features['typosquatting'] = typosquat_result
         
         return {
             'url': url,
@@ -94,9 +111,13 @@ class PhishingDetectionService:
             'recommended_action': recommended_action
         }
     
-    def _calculate_risk_score(self, features: dict) -> float:
+    def _calculate_risk_score(self, features: dict, typosquat: dict = None) -> float:
         """Calculate risk score based on URL features (0-100)."""
         score = 0
+        
+        # TYPOSQUATTING - Major risk indicator
+        if typosquat and typosquat.get('is_typosquatting'):
+            score += typosquat.get('risk_increase', 50)
         
         # Length-based risks
         if features.get('url_length', 0) > 75:
@@ -131,9 +152,15 @@ class PhishingDetectionService:
             
         return min(100, score)
     
-    def _generate_rule_based_analysis(self, features: dict) -> str:
+    def _generate_rule_based_analysis(self, features: dict, typosquat: dict = None) -> str:
         """Fallback rule-based analysis when MLLM is not available."""
         issues = []
+        
+        # Typosquatting is the most important indicator
+        if typosquat and typosquat.get('is_typosquatting'):
+            brand = typosquat.get('impersonated_brand', 'unknown')
+            method = typosquat.get('detection_method', 'unknown')
+            issues.append(f"BRAND IMPERSONATION: Attempting to mimic '{brand}' ({method})")
         
         if features.get('is_ip_address'):
             issues.append("URL uses an IP address instead of domain name")
