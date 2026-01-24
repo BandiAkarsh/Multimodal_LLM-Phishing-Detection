@@ -212,9 +212,13 @@ class PhishingDetectionService:
         
         # Typosquatting is the most important indicator
         if typosquat and typosquat.get('is_typosquatting'):
-            brand = typosquat.get('impersonated_brand', 'unknown')
             method = typosquat.get('detection_method', 'unknown')
-            issues.append(f"BRAND IMPERSONATION: Attempting to mimic '{brand}' ({method})")
+            if method == 'faulty_extension':
+                details = typosquat.get('details', ["Faulty extension detected"])[0]
+                issues.append(details)
+            else:
+                brand = typosquat.get('impersonated_brand', 'unknown')
+                issues.append(f"BRAND IMPERSONATION: Attempting to mimic '{brand}' ({method})")
         
         if features.get('is_ip_address'):
             issues.append("URL uses an IP address instead of domain name")

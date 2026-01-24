@@ -93,9 +93,15 @@ def print_result(result):
     # Show typosquatting details if detected
     typo = result['features'].get('typosquatting', {})
     if typo.get('is_typosquatting'):
-        print(f"""{Colors.RED}{Colors.BOLD}⚠️  BRAND IMPERSONATION DETECTED:{Colors.END}
+        method = typo.get('detection_method', 'unknown')
+        if method == 'faulty_extension':
+             print(f"""{Colors.RED}{Colors.BOLD}⚠️  FAULTY EXTENSION DETECTED:{Colors.END}
+   {typo.get('details', ["Incorrect TLD"])[0]}
+""")
+        else:
+            print(f"""{Colors.RED}{Colors.BOLD}⚠️  BRAND IMPERSONATION DETECTED:{Colors.END}
    Impersonated Brand: {typo.get('impersonated_brand', 'unknown').upper()}
-   Method: {typo.get('detection_method', 'unknown')}
+   Method: {method}
    Similarity: {typo.get('similarity_score', 0)*100:.1f}%
 """)
 

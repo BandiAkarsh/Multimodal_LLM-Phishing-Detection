@@ -6,6 +6,7 @@ Detects brand impersonation through:
 2. Character substitution patterns (0 for o, 1 for l, etc.)
 3. Homoglyph detection (characters that look similar)
 4. Brand keyword presence in suspicious contexts
+5. TLD typosquatting (.pom instead of .com, etc.)
 """
 
 import re
@@ -14,7 +15,7 @@ import tldextract
 
 # Major brands that are commonly impersonated
 PROTECTED_BRANDS = {
-    # Financial
+    # Financial - Global
     'paypal': ['paypal.com'],
     'chase': ['chase.com'],
     'bankofamerica': ['bankofamerica.com', 'bofa.com'],
@@ -24,11 +25,22 @@ PROTECTED_BRANDS = {
     'visa': ['visa.com'],
     'mastercard': ['mastercard.com'],
     
+    # Financial - India
+    'hdfc': ['hdfcbank.com', 'hdfc.com'],
+    'icici': ['icicibank.com', 'icici.com'],
+    'sbi': ['sbi.co.in', 'onlinesbi.com'],
+    'axis': ['axisbank.com'],
+    'kotak': ['kotak.com', 'kotakbank.com'],
+    'paytm': ['paytm.com'],
+    'phonepe': ['phonepe.com'],
+    'gpay': ['pay.google.com'],
+    'razorpay': ['razorpay.com'],
+    
     # Tech Giants
     'google': ['google.com', 'gmail.com', 'youtube.com'],
     'microsoft': ['microsoft.com', 'outlook.com', 'live.com', 'office.com'],
     'apple': ['apple.com', 'icloud.com'],
-    'amazon': ['amazon.com', 'aws.amazon.com'],
+    'amazon': ['amazon.com', 'amazon.in', 'aws.amazon.com'],
     'facebook': ['facebook.com', 'fb.com'],
     'meta': ['meta.com'],
     'instagram': ['instagram.com'],
@@ -38,17 +50,33 @@ PROTECTED_BRANDS = {
     'netflix': ['netflix.com'],
     'spotify': ['spotify.com'],
     
-    # E-commerce
+    # E-commerce - Global
     'ebay': ['ebay.com'],
     'alibaba': ['alibaba.com', 'aliexpress.com'],
     'walmart': ['walmart.com'],
     'target': ['target.com'],
+    
+    # E-commerce - India
+    'flipkart': ['flipkart.com'],
+    'myntra': ['myntra.com'],
+    'ajio': ['ajio.com'],
+    'nykaa': ['nykaa.com'],
+    'blinkit': ['blinkit.com'],
+    'zepto': ['zepto.com'],
+    'swiggy': ['swiggy.com'],
+    'zomato': ['zomato.com'],
+    'bigbasket': ['bigbasket.com'],
+    'jiomart': ['jiomart.com'],
+    'meesho': ['meesho.com'],
+    'snapdeal': ['snapdeal.com'],
     
     # Crypto
     'coinbase': ['coinbase.com'],
     'binance': ['binance.com'],
     'metamask': ['metamask.io'],
     'blockchain': ['blockchain.com'],
+    'wazirx': ['wazirx.com'],
+    'coinswitch': ['coinswitch.co'],
     
     # Services
     'dropbox': ['dropbox.com'],
@@ -62,6 +90,16 @@ PROTECTED_BRANDS = {
     'ups': ['ups.com'],
     'usps': ['usps.com'],
     'dhl': ['dhl.com'],
+    'bluedart': ['bluedart.com'],
+    'delhivery': ['delhivery.com'],
+    
+    # Travel - India
+    'irctc': ['irctc.co.in'],
+    'makemytrip': ['makemytrip.com'],
+    'goibibo': ['goibibo.com'],
+    'ola': ['olacabs.com'],
+    'uber': ['uber.com'],
+    'redbus': ['redbus.in'],
 }
 
 # Common character substitutions used in typosquatting
@@ -83,10 +121,50 @@ HOMOGLYPHS = {
     'z': ['2'],
 }
 
+# Legitimate TLDs
+VALID_TLDS = {
+    'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
+    'co', 'io', 'ai', 'app', 'dev', 'tech', 'online',
+    'in', 'uk', 'us', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ru', 'br',
+    'info', 'biz', 'name', 'pro', 'mobi', 'tv', 'me', 'cc',
+    'co.in', 'co.uk', 'com.au', 'com.br', 'co.jp',
+}
+
+# Common TLD typos (suspicious TLDs that look like real ones)
+TLD_TYPOS = {
+    # Typos of .com
+    'corn': 'com', 'cmo': 'com', 'con': 'com', 'vom': 'com', 'xom': 'com',
+    'om': 'com', 'cm': 'com', 'comn': 'com', 'comm': 'com', 'coml': 'com',
+    'pom': 'com', 'dom': 'com', 'oom': 'com', 'clm': 'com', 'cim': 'com',
+    'cpm': 'com', 'c0m': 'com', 'conm': 'com',
+    
+    # Typos of .org
+    'ogr': 'org', 'rog': 'org', 'prg': 'org', 'orgg': 'org', '0rg': 'org',
+    'orc': 'org', 'orf': 'org', 'org1': 'org',
+    
+    # Typos of .net
+    'ner': 'net', 'met': 'net', 'nett': 'net', 'bet': 'net', 'n3t': 'net',
+    'nrt': 'net', 'het': 'net',
+    
+    # Typos of .edu
+    'eud': 'edu', 'edu1': 'edu', 'eduu': 'edu', '3du': 'edu',
+    
+    # Typos of .gov
+    'gof': 'gov', 'goov': 'gov', 'g0v': 'gov',
+    
+    # Typos of .in (India)
+    'ln': 'in', '1n': 'in', 'im': 'in', 'inn': 'in',
+    
+    # Typos of .io
+    'lo': 'io', '1o': 'io', 'i0': 'io',
+}
+
 class TyposquattingDetector:
     def __init__(self):
         self.brands = PROTECTED_BRANDS
         self.homoglyphs = HOMOGLYPHS
+        self.tld_typos = TLD_TYPOS
+        self.valid_tlds = VALID_TLDS
         
     def analyze(self, url: str) -> dict:
         """
@@ -97,6 +175,8 @@ class TyposquattingDetector:
         """
         extracted = tldextract.extract(url)
         domain = extracted.domain.lower()
+        suffix = extracted.suffix.lower()
+        subdomain = extracted.subdomain.lower()
         full_domain = f"{extracted.subdomain}.{extracted.domain}.{extracted.suffix}".lower()
         full_domain = full_domain.strip('.')
         
@@ -108,6 +188,48 @@ class TyposquattingDetector:
             'risk_increase': 0,
             'details': []
         }
+        
+        # SPECIAL CASE: When TLD is invalid, tldextract puts real domain in subdomain
+        # e.g., "blinkit.pom" -> subdomain="blinkit", domain="pom", suffix=""
+        if not suffix and domain in self.tld_typos:
+            # The "domain" is actually a typo TLD, real domain is in subdomain
+            real_domain = subdomain
+            fake_tld = domain
+            intended_tld = self.tld_typos[fake_tld]
+            
+            results['is_typosquatting'] = True
+            results['impersonated_brand'] = None  # It's a TLD error, not necessarily brand impersonation
+            results['detection_method'] = 'faulty_extension'
+            results['similarity_score'] = 0.9
+            results['risk_increase'] = 55
+            results['details'].append(f"Faulty or incorrect extension: '.{fake_tld}' (Did you mean '.{intended_tld}'?)")
+            return results
+        
+        # Check 0: TLD Typosquatting with valid suffix format
+        if suffix in self.tld_typos:
+            results['is_typosquatting'] = True
+            results['impersonated_brand'] = None
+            results['detection_method'] = 'faulty_extension'
+            results['similarity_score'] = 0.9
+            results['risk_increase'] = 55
+            intended_tld = self.tld_typos[suffix]
+            results['details'].append(f"Faulty or incorrect extension: '.{suffix}' (Did you mean '.{intended_tld}'?)")
+            return results
+        
+        # Check 0.5: Unknown/Suspicious TLD (not in valid list and not in typo list)
+        effective_tld = suffix if suffix else domain
+        if effective_tld and effective_tld not in self.valid_tlds and '.' not in effective_tld:
+            # Check if it's similar to a valid TLD
+            for valid_tld in ['com', 'org', 'net', 'edu', 'gov', 'in', 'io']:
+                similarity = SequenceMatcher(None, effective_tld, valid_tld).ratio()
+                if similarity > 0.5 and similarity < 1.0:
+                    results['is_typosquatting'] = True
+                    results['impersonated_brand'] = None
+                    results['detection_method'] = 'faulty_extension'
+                    results['similarity_score'] = similarity
+                    results['risk_increase'] = 50
+                    results['details'].append(f"Suspicious or faulty extension: '.{effective_tld}' (Similar to legitimate '.{valid_tld}')")
+                    return results
         
         # Check each brand
         for brand, legitimate_domains in self.brands.items():
@@ -148,7 +270,7 @@ class TyposquattingDetector:
                 break
         
         # Check 4: Brand in subdomain (subdomain attack)
-        if extracted.subdomain:
+        if not results['is_typosquatting'] and extracted.subdomain:
             for brand in self.brands.keys():
                 if brand in extracted.subdomain.lower():
                     results['is_typosquatting'] = True
