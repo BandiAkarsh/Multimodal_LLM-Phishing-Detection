@@ -2,7 +2,8 @@ import os
 import sys
 import torch
 from torch.utils.data import DataLoader, random_split
-from transformers import AutoTokenizer, AdamW, get_linear_schedule_with_warmup
+from torch.optim import AdamW
+from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 from tqdm import tqdm
 import argparse
 
