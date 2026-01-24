@@ -11,8 +11,16 @@ pandas>=2.0.0
 numpy>=1.24.0
 joblib>=1.3.0
 
-# URL Parsing
+# URL Parsing & Scraping
 tldextract>=3.4.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+
+# MLLM & Deep Learning (Optional for Tier 1/2, required for Tier 3)
+torch>=2.0.0
+transformers>=4.30.0
+accelerate>=0.26.0
+bitsandbytes>=0.41.0
 
 # HTTP Client (for health checks)
 httpx>=0.24.0
