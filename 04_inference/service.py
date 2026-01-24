@@ -65,29 +65,36 @@ class PhishingDetectionService:
                 print(f"Warning: Could not load MLLM model: {e}")
                 self.model_loaded = False
     
-    def analyze_url(self, url: str) -> dict:
+    def analyze_url(self, url: str, force_mllm: bool = False) -> dict:
         """
-        Analyze a single URL for phishing indicators.
+        Analyze a single URL for phishing indicators using Tiered Detection.
         
-        Returns:
-            dict with classification, confidence, explanation, etc.
+        Tiers:
+        1. Typosquatting/Heuristics (Instant)
+        2. ML Model (Very Fast)
+        3. MLLM (Slow, GPU-intensive) - Only if uncertain or forced
         """
-        # Step 1: Extract URL features
+        # Tier 1: Extract URL features & Check Typosquatting
         url_features = self.url_extractor.extract_features(url)
-        
-        # Step 2: Check for typosquatting/brand impersonation
         typosquat_result = self.typosquatting_detector.analyze(url)
         
-        # Step 3: ML Model prediction (if available)
+        # Tier 2: ML Model prediction
         ml_prediction = None
         ml_confidence = 0.5
         if self.ml_model_loaded:
             ml_prediction, ml_confidence = self._predict_with_ml(url_features)
         
-        # Step 4: Calculate combined risk score
+        # Tier 3: Determine if MLLM is needed
+        # Logic: Only run MLLM if:
+        # a) Forced by user
+        # b) ML model is uncertain (confidence < 0.85)
+        # c) Typosquatting detected (to get detailed brand analysis)
+        needs_mllm = force_mllm or (ml_confidence < 0.85) or typosquat_result.get('is_typosquatting')
+        
+        # Calculate initial risk score
         risk_score = self._calculate_risk_score(url_features, typosquat_result, ml_prediction, ml_confidence)
         
-        # Step 5: Determine classification
+        # Determine classification
         if typosquat_result.get('is_typosquatting'):
             classification = "phishing"
             confidence = max(0.85, ml_confidence) if ml_prediction == 1 else 0.85
@@ -95,32 +102,25 @@ class PhishingDetectionService:
         elif ml_prediction is not None:
             classification = "phishing" if ml_prediction == 1 else "legitimate"
             confidence = ml_confidence
-            if classification == "phishing":
-                recommended_action = "block" if confidence >= 0.8 else "warn"
-            else:
-                recommended_action = "allow"
-        elif risk_score >= 70:
-            classification = "phishing"
-            confidence = 0.85
-            recommended_action = "block"
-        elif risk_score >= 35:
-            classification = "phishing"
-            confidence = 0.7
-            recommended_action = "warn"
+            recommended_action = "block" if (classification == "phishing" and confidence >= 0.8) else ("warn" if classification == "phishing" else "allow")
         else:
-            classification = "legitimate"
-            confidence = 0.8
-            recommended_action = "allow"
+            # Fallback to heuristics
+            classification = "phishing" if risk_score >= 35 else "legitimate"
+            confidence = 0.7 if classification == "phishing" else 0.8
+            recommended_action = "block" if risk_score >= 70 else ("warn" if risk_score >= 35 else "allow")
         
-        # Step 6: Generate explanation
-        if self.mllm_transformer:
+        # Run MLLM if needed and loaded
+        if needs_mllm and self.mllm_transformer:
             try:
                 metadata = {'url': url, 'url_features': url_features, 'typosquatting': typosquat_result}
                 text_description = self.mllm_transformer.transform_to_text(metadata)
             except Exception as e:
                 text_description = self._generate_rule_based_analysis(url_features, typosquat_result)
         else:
+            # Skip MLLM to save resources
             text_description = self._generate_rule_based_analysis(url_features, typosquat_result)
+            if not needs_mllm:
+                text_description = f"[FastScan] {text_description}"
         
         # Add typosquatting info to features
         url_features['typosquatting'] = typosquat_result
@@ -133,7 +133,8 @@ class PhishingDetectionService:
             'explanation': text_description,
             'features': url_features,
             'recommended_action': recommended_action,
-            'ml_model_used': self.ml_model_loaded
+            'ml_model_used': self.ml_model_loaded,
+            'mllm_used': needs_mllm and self.model_loaded
         }
     
     def _predict_with_ml(self, features: dict) -> tuple:
