@@ -3,6 +3,7 @@ import os
 import importlib.util
 import numpy as np
 import joblib
+import tldextract
 
 # Add parent directory to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +31,14 @@ class PhishingDetectionService:
     Main service for phishing detection using MLLM + ML Classifier.
     Combines URL feature extraction + typosquatting + ML model + MLLM explanation.
     """
+    
+    # Whitelisted domains for marketing/infrastructure that often have "messy" URLs
+    WHITELISTED_DOMAINS = {
+        'customeriomail.com', 'sendgrid.net', 'mailchimp.com', 'google.com',
+        'github.com', 'microsoft.com', 'cursor.com', 'cursor.sh',
+        'amazonaws.com', 'azure.com', 'googleapis.com', 'gstatic.com',
+        'slack.com', 'zoom.us', 'atlassian.com', 'linear.app', 'stripe.com'
+    }
     
     def __init__(self, load_mllm=False, load_ml_model=True):
         self.url_extractor = URLFeatureExtractor()
@@ -70,10 +79,26 @@ class PhishingDetectionService:
         Analyze a single URL for phishing indicators using Tiered Detection.
         
         Tiers:
-        1. Typosquatting/Heuristics (Instant)
+        1. Whitelist/Typosquatting/Heuristics (Instant)
         2. ML Model (Very Fast)
         3. MLLM (Slow, GPU-intensive) - Only if uncertain or forced
         """
+        # Tier 0: Check Whitelist (Marketing/Infrastructure domains)
+        extracted = tldextract.extract(url)
+        domain_part = f"{extracted.domain}.{extracted.suffix}"
+        if domain_part in self.WHITELISTED_DOMAINS:
+            return {
+                'url': url,
+                'classification': 'legitimate',
+                'confidence': 1.0,
+                'risk_score': 0,
+                'explanation': f"Domain '{domain_part}' is in the trusted whitelist.",
+                'features': {},
+                'recommended_action': 'allow',
+                'ml_model_used': False,
+                'mllm_used': False
+            }
+
         # Tier 1: Extract URL features & Check Typosquatting
         url_features = self.url_extractor.extract_features(url)
         typosquat_result = self.typosquatting_detector.analyze(url)

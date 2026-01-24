@@ -216,20 +216,42 @@ class TyposquattingDetector:
             results['details'].append(f"Faulty or incorrect extension: '.{suffix}' (Did you mean '.{intended_tld}'?)")
             return results
         
-        # Check 0.5: Unknown/Suspicious TLD (not in valid list and not in typo list)
+        # Check 0.5: STRICT Invalid Extension Check
         effective_tld = suffix if suffix else domain
-        if effective_tld and effective_tld not in self.valid_tlds and '.' not in effective_tld:
-            # Check if it's similar to a valid TLD
-            for valid_tld in ['com', 'org', 'net', 'edu', 'gov', 'in', 'io']:
-                similarity = SequenceMatcher(None, effective_tld, valid_tld).ratio()
-                if similarity > 0.5 and similarity < 1.0:
-                    results['is_typosquatting'] = True
-                    results['impersonated_brand'] = None
-                    results['detection_method'] = 'faulty_extension'
-                    results['similarity_score'] = similarity
-                    results['risk_increase'] = 50
-                    results['details'].append(f"Suspicious or faulty extension: '.{effective_tld}' (Similar to legitimate '.{valid_tld}')")
-                    return results
+        
+        # If no dot in URL (like "kabsis"), handle it
+        if '.' not in url.split('//')[-1]: 
+             if url.split('//')[-1] != 'localhost':
+                results['is_typosquatting'] = True
+                results['impersonated_brand'] = None
+                results['detection_method'] = 'invalid_domain_structure'
+                results['similarity_score'] = 1.0
+                results['risk_increase'] = 80
+                results['details'].append(f"Invalid domain structure: '{url}'. Missing valid extension.")
+                return results
+
+        # If extension exists but is NOT in our valid list -> Flag it
+        if suffix and suffix not in self.valid_tlds:
+            results['is_typosquatting'] = True
+            results['impersonated_brand'] = None
+            results['detection_method'] = 'invalid_extension'
+            results['similarity_score'] = 1.0
+            results['risk_increase'] = 75
+            
+            # Check if it's visually similar to a valid TLD for better error message
+            similar_tld = None
+            for valid in self.valid_tlds:
+                if SequenceMatcher(None, suffix, valid).ratio() >= 0.75:
+                    similar_tld = valid
+                    break
+            
+            if similar_tld:
+                msg = f"Invalid extension '.{suffix}' (Likely typo of '.{similar_tld}')"
+            else:
+                msg = f"Invalid/Non-existent extension '.{suffix}' detected."
+                
+            results['details'].append(msg)
+            return results
         
         # Check each brand
         for brand, legitimate_domains in self.brands.items():
