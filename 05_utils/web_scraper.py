@@ -73,8 +73,12 @@ class WebScraper:
             # Get HTML
             result['html'] = await page.content()
             
-            # Parse DOM structure
-            soup = BeautifulSoup(result['html'], 'lxml')
+            # Parse DOM structure (robust fallback)
+            try:
+                soup = BeautifulSoup(result['html'], 'lxml')
+            except Exception:
+                soup = BeautifulSoup(result['html'], 'html.parser')
+                
             result['dom_structure'] = self._extract_dom_features(soup)
             
             result['success'] = True

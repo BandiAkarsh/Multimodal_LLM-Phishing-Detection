@@ -111,18 +111,29 @@ class PhishingDetectionService:
         
         if needs_scraping:
             print(f"Initiating Multimodal Scrape for {url}...")
-            scraper = WebScraper(headless=True, timeout=15000) # 15s timeout
+            scraper = WebScraper(headless=True, timeout=30000) # 30s timeout
             try:
                 scrape_result = await scraper.scrape_url(url)
                 if scrape_result['success']:
                     scrape_success = True
                     html_summary = scrape_result['dom_structure']
-                    # TODO: Pass screenshot to MLLM if it supports visual input directly
+                    
+                    # Content Credibility Bonus
+                    # If site works and has substantial content, reduce risk from "random domain" heuristic
+                    if html_summary:
+                        links_count = html_summary.get('num_links', 0)
+                        has_title = bool(html_summary.get('title'))
+                        
+                        if links_count > 10 and has_title:
+                            print(f"Site content validated: {links_count} links found. Reducing risk.")
+                            risk_score = max(0, risk_score - 20)
+                            
                 else:
                     # Scenario: "jurassicpark.com" (NXDOMAIN / Connection Refused)
                     print(f"Scraping failed for {url}. Site might be offline.")
                     # If site is offline, it might be a taken-down phishing site or invalid.
                     # We flag it as suspicious if it had other risk factors.
+                    risk_score += 10 # Penalty for being unreachable
             except Exception as e:
                 print(f"Scraper error: {e}")
             finally:
@@ -357,6 +368,11 @@ class PhishingDetectionService:
         """Fallback rule-based analysis when MLLM is not available."""
         issues = []
         
+        # Check DOM Features if available (from Scraping)
+        # Note: 'dom_structure' might be passed inside features or handled separately.
+        # Currently, analyze_url_async doesn't merge dom features into 'features' dict for this function.
+        # But we can infer legitimacy.
+        
         # Typosquatting is the most important indicator
         if typosquat and typosquat.get('is_typosquatting'):
             method = typosquat.get('detection_method', 'unknown')
@@ -371,27 +387,16 @@ class PhishingDetectionService:
                 issues.append(f"BRAND IMPERSONATION: Attempting to mimic '{brand}' ({method})")
         
         if features.get('is_random_domain', 0):
-            if features.get('max_consecutive_consonants', 0) >= 5:
-                issues.append("Suspicious domain pattern: Unpronounceable (too many consecutive consonants)")
-            elif features.get('max_consecutive_vowels', 0) >= 4:
-                issues.append("Suspicious domain pattern: Unpronounceable (too many consecutive vowels)")
-            elif features.get('vowel_ratio', 1) < 0.15:
-                issues.append("Suspicious domain pattern: Gibberish (lack of vowels)")
-            elif features.get('vowel_ratio', 0) > 0.75:
-                issues.append("Suspicious domain pattern: Gibberish (excessive vowels)")
+            # If we successfully scraped content, we might relax this
+            if features.get('is_ip_address'):
+                issues.append("URL uses an IP address instead of domain name")
             else:
                 issues.append("High entropy domain name with no recognizable pattern")
             
-        if features.get('is_ip_address'):
-            issues.append("URL uses an IP address instead of domain name")
         if not features.get('is_https'):
             issues.append("Connection is not secure (no HTTPS)")
         if features.get('has_suspicious_words', 0) > 0:
             issues.append("URL contains suspicious keywords like 'login', 'verify', 'account'")
-        if features.get('entropy', 0) > 4.5:
-            issues.append("URL contains random-looking characters (high entropy)")
-        if features.get('subdomain_count', 0) > 2:
-            issues.append("Excessive number of subdomains")
             
         if issues:
             return "Suspicious indicators found: " + "; ".join(issues)
