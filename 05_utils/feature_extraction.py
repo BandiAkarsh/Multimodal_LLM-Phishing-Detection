@@ -2,6 +2,13 @@ import re
 import tldextract
 from urllib.parse import urlparse
 import numpy as np
+try:
+    from .common_words import COMMON_WORDS
+except ImportError:
+    try:
+        from common_words import COMMON_WORDS
+    except ImportError:
+        COMMON_WORDS = set()
 
 class URLFeatureExtractor:
     """Extract handcrafted features from URLs"""
@@ -116,7 +123,24 @@ class URLFeatureExtractor:
                      is_random = 1
                      break
             
+        # Dictionary Check (Override randomness if it's a known word)
+        is_dictionary_word = 0
+        if COMMON_WORDS:
+            # Check full domain
+            if domain_text in COMMON_WORDS:
+                is_dictionary_word = 1
+            # Check if domain is composed of 2 words (e.g. facebook, whatsapp)
+            elif len(domain_text) > 3:
+                for i in range(2, len(domain_text)-1):
+                    if domain_text[:i] in COMMON_WORDS and domain_text[i:] in COMMON_WORDS:
+                        is_dictionary_word = 1
+                        break
+        
+        if is_dictionary_word:
+            is_random = 0
+            
         features['is_random_domain'] = is_random
+        features['is_dictionary_word'] = is_dictionary_word
         
         return features
     

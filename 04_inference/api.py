@@ -84,7 +84,8 @@ async def analyze_url(request: URLAnalysisRequest):
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        result = phishing_service.analyze_url(request.url)
+        # Use async analysis for full multimodal capabilities (Tier 3 Scraping)
+        result = await phishing_service.analyze_url_async(request.url, force_mllm=request.force_scan)
         return URLAnalysisResponse(
             url=result['url'],
             classification=ClassificationResult(result['classification']),
@@ -118,7 +119,8 @@ async def batch_analyze_urls(request: BatchURLAnalysisRequest):
     
     for url in request.urls:
         try:
-            result = phishing_service.analyze_url(url)
+            # Use async analysis
+            result = await phishing_service.analyze_url_async(url)
             response = URLAnalysisResponse(
                 url=result['url'],
                 classification=ClassificationResult(result['classification']),

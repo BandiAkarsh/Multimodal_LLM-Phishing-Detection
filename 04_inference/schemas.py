@@ -10,6 +10,7 @@ class ClassificationResult(str, Enum):
 
 class URLAnalysisRequest(BaseModel):
     url: str
+    force_scan: bool = False
     
 class BatchURLAnalysisRequest(BaseModel):
     urls: List[str]

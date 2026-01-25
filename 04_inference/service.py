@@ -4,6 +4,7 @@ import importlib.util
 import numpy as np
 import joblib
 import tldextract
+import asyncio
 
 # Add parent directory to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,10 +22,12 @@ def load_module(name, path):
 feature_extraction = load_module('feature_extraction', os.path.join(project_root, '05_utils/feature_extraction.py'))
 mllm_transformer = load_module('mllm_transformer', os.path.join(project_root, '05_utils/mllm_transformer.py'))
 typosquatting_detector = load_module('typosquatting_detector', os.path.join(project_root, '05_utils/typosquatting_detector.py'))
+web_scraper = load_module('web_scraper', os.path.join(project_root, '05_utils/web_scraper.py'))
 
 URLFeatureExtractor = feature_extraction.URLFeatureExtractor
 MLLMFeatureTransformer = mllm_transformer.MLLMFeatureTransformer
 TyposquattingDetector = typosquatting_detector.TyposquattingDetector
+WebScraper = web_scraper.WebScraper
 
 class PhishingDetectionService:
     """
@@ -74,6 +77,111 @@ class PhishingDetectionService:
                 print(f"Warning: Could not load MLLM model: {e}")
                 self.model_loaded = False
     
+    async def analyze_url_async(self, url: str, force_mllm: bool = False) -> dict:
+        """
+        Async version of analyze_url that supports full Multimodal Scraping (Tier 3).
+        """
+        # Tier 0, 1, 2 (Fast Static Checks)
+        # Reuse logic from synchronous method for consistency
+        # In a real refactor, logic should be shared. For now, I'll copy critical parts.
+        
+        extracted = tldextract.extract(url)
+        domain_part = f"{extracted.domain}.{extracted.suffix}"
+        if domain_part in self.WHITELISTED_DOMAINS:
+             return self.analyze_url(url) # Return static result
+
+        url_features = self.url_extractor.extract_features(url)
+        typosquat_result = self.typosquatting_detector.analyze(url)
+        
+        ml_prediction = None
+        ml_confidence = 0.5
+        if self.ml_model_loaded:
+            ml_prediction, ml_confidence = self._predict_with_ml(url_features)
+            
+        risk_score = self._calculate_risk_score(url_features, typosquat_result, ml_prediction, ml_confidence)
+        
+        # Decide if we need full scraping (Tier 3)
+        # 1. User forced it
+        # 2. Risk is ambiguous (between 30 and 70)
+        # 3. Typosquatting found (verify if it's a parked page vs real clone)
+        needs_scraping = force_mllm or (30 <= risk_score <= 70) or typosquat_result.get('is_typosquatting')
+        
+        html_summary = {}
+        scrape_success = False
+        
+        if needs_scraping:
+            print(f"Initiating Multimodal Scrape for {url}...")
+            scraper = WebScraper(headless=True, timeout=15000) # 15s timeout
+            try:
+                scrape_result = await scraper.scrape_url(url)
+                if scrape_result['success']:
+                    scrape_success = True
+                    html_summary = scrape_result['dom_structure']
+                    # TODO: Pass screenshot to MLLM if it supports visual input directly
+                else:
+                    # Scenario: "jurassicpark.com" (NXDOMAIN / Connection Refused)
+                    print(f"Scraping failed for {url}. Site might be offline.")
+                    # If site is offline, it might be a taken-down phishing site or invalid.
+                    # We flag it as suspicious if it had other risk factors.
+            except Exception as e:
+                print(f"Scraper error: {e}")
+            finally:
+                await scraper.close()
+        
+        # MLLM Processing
+        if self.mllm_transformer and (needs_scraping or force_mllm):
+            try:
+                metadata = {
+                    'url': url, 
+                    'url_features': url_features, 
+                    'typosquatting': typosquat_result,
+                    'html_summary': html_summary if scrape_success else "Site unreachable or content extraction failed."
+                }
+                text_description = self.mllm_transformer.transform_to_text(metadata)
+            except Exception as e:
+                text_description = self._generate_rule_based_analysis(url_features, typosquat_result)
+        else:
+            text_description = self._generate_rule_based_analysis(url_features, typosquat_result)
+            if not scrape_success and needs_scraping:
+                 text_description += " [Note: Website content was unreachable]"
+
+        # Determine Final Classification (similar logic to sync)
+        if typosquat_result.get('is_typosquatting'):
+            classification = "phishing"
+            recommended_action = "block" if risk_score >= 50 else "warn"
+            confidence = 0.85
+        elif not scrape_success and needs_scraping and risk_score > 40:
+             # Site unreachable + High Risk = Suspicious
+             classification = "phishing"
+             recommended_action = "warn"
+             confidence = 0.6
+             text_description = "Site is unreachable but has suspicious URL characteristics."
+        elif risk_score >= 70:
+            classification = "phishing"
+            recommended_action = "block"
+            confidence = 0.9
+        elif risk_score >= 35:
+            classification = "phishing"
+            recommended_action = "warn"
+            confidence = 0.7
+        else:
+            classification = "legitimate"
+            recommended_action = "allow"
+            confidence = 0.85
+
+        return {
+            'url': url,
+            'classification': classification,
+            'confidence': confidence,
+            'risk_score': risk_score,
+            'explanation': text_description,
+            'features': url_features,
+            'recommended_action': recommended_action,
+            'ml_model_used': self.ml_model_loaded,
+            'mllm_used': (self.mllm_transformer is not None) and needs_scraping,
+            'scraped': scrape_success
+        }
+
     def analyze_url(self, url: str, force_mllm: bool = False) -> dict:
         """
         Analyze a single URL for phishing indicators using Tiered Detection.
