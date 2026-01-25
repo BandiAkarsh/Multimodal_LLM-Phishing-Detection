@@ -94,13 +94,16 @@ def print_result(result):
     typo = result['features'].get('typosquatting', {})
     if typo.get('is_typosquatting'):
         method = typo.get('detection_method', 'unknown')
-        if method == 'faulty_extension':
-             print(f"""{Colors.RED}{Colors.BOLD}⚠️  FAULTY EXTENSION DETECTED:{Colors.END}
-   {typo.get('details', ["Incorrect TLD"])[0]}
+        if method in ['faulty_extension', 'invalid_domain_structure', 'invalid_extension']:
+             print(f"""{Colors.RED}{Colors.BOLD}⚠️  INVALID DOMAIN / EXTENSION DETECTED:{Colors.END}
+   {typo.get('details', ["Unknown error"])[0]}
 """)
         else:
+            brand = typo.get('impersonated_brand', 'unknown')
+            brand_display = brand.upper() if brand else "UNKNOWN"
+            
             print(f"""{Colors.RED}{Colors.BOLD}⚠️  BRAND IMPERSONATION DETECTED:{Colors.END}
-   Impersonated Brand: {typo.get('impersonated_brand', 'unknown').upper()}
+   Impersonated Brand: {brand_display}
    Method: {method}
    Similarity: {typo.get('similarity_score', 0)*100:.1f}%
 """)
