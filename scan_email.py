@@ -80,18 +80,18 @@ def scan_email(file_path):
         if result['classification'] == 'phishing':
             phishing_found = True
             print(f"{Colors.RED}[PHISHING] {url}{Colors.END}")
-            print(f"   ↳ Reason: {result['explanation']}")
-            print(f"   ↳ Risk Score: {result['risk_score']}/100")
+            print(f"   Reason: {result['explanation']}")
+            print(f"   Risk Score: {result['risk_score']}/100")
         else:
             print(f"{Colors.GREEN}[SAFE]     {url}{Colors.END}")
 
-    print("\n" + "="*50)
+    print("\n" + "="*60)
     if phishing_found:
-        print(f"{Colors.RED}{Colors.BOLD}🚫 DANGER: This email contains PHISHING links!{Colors.END}")
-        print(f"{Colors.RED}{Colors.BOLD}   DO NOT CLICK any links in this email.{Colors.END}")
+        print(f"{Colors.RED}{Colors.BOLD}[!] DANGER: This email contains PHISHING links!{Colors.END}")
+        print(f"{Colors.RED}{Colors.BOLD}    DO NOT CLICK any links in this email.{Colors.END}")
     else:
-        print(f"{Colors.GREEN}{Colors.BOLD}✅ CLEAN: No threats detected.{Colors.END}")
-    print("="*50 + "\n")
+        print(f"{Colors.GREEN}{Colors.BOLD}[OK] CLEAN: No threats detected.{Colors.END}")
+    print("="*60 + "\n")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

@@ -1,3 +1,9 @@
+# Secrets
+email_config.json
+secrets/
+credentials/
+*.env
+
 # Python
 __pycache__/
 *.py[cod]

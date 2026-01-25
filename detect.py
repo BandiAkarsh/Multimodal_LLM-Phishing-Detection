@@ -61,60 +61,55 @@ def print_result(result):
     # Color based on classification
     if classification == 'phishing':
         color = Colors.RED
-        icon = "🚨"
         status = "PHISHING DETECTED"
     else:
         color = Colors.GREEN
-        icon = "✅"
         status = "LEGITIMATE"
     
     # Action color
     if action == 'block':
         action_color = Colors.RED
-        action_icon = "🛑"
     elif action == 'warn':
         action_color = Colors.YELLOW
-        action_icon = "⚠️"
     else:
         action_color = Colors.GREEN
-        action_icon = "✓"
     
     print(f"""
-{Colors.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
+{Colors.BOLD}================================================================={Colors.END}
 {Colors.CYAN}URL:{Colors.END} {url}
-{Colors.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
+{Colors.BOLD}================================================================={Colors.END}
 
-{icon} {color}{Colors.BOLD}Result: {status}{Colors.END}
+{color}{Colors.BOLD}[RESULT] {status}{Colors.END}
 
 {Colors.BLUE}Confidence:{Colors.END}  {confidence*100:.1f}%
 {Colors.BLUE}Risk Score:{Colors.END}  {risk_score}/100
-{action_icon} {action_color}Action:{Colors.END}     {action.upper()}
+{action_color}Action:{Colors.END}      {action.upper()}
 
 {Colors.MAGENTA}Analysis:{Colors.END}
 {explanation}
 """)
     
     if result.get('scraped'):
-        print(f"{Colors.GREEN}[Multimodal] Successfully scraped webpage content.{Colors.END}")
+        print(f"{Colors.GREEN}[INFO] Successfully scraped webpage content.{Colors.END}")
         proof = result.get('scrape_proof')
         if proof:
-            print(f"   {Colors.BLUE}📄 Title:{Colors.END} {proof.get('title')}")
-            print(f"   {Colors.BLUE}📦 Content Size:{Colors.END} {proof.get('html_size_bytes')} bytes")
-            print(f"   {Colors.BLUE}🖼️  Screenshot:{Colors.END} {proof.get('screenshot_size')}")
+            print(f"   {Colors.BLUE}Title:{Colors.END} {proof.get('title')}")
+            print(f"   {Colors.BLUE}Size:{Colors.END} {proof.get('html_size_bytes')} bytes")
+            print(f"   {Colors.BLUE}Resolution:{Colors.END} {proof.get('screenshot_size')}")
     
     # Show typosquatting details if detected
     typo = result['features'].get('typosquatting', {})
     if typo.get('is_typosquatting'):
         method = typo.get('detection_method', 'unknown')
         if method in ['faulty_extension', 'invalid_domain_structure', 'invalid_extension']:
-             print(f"""{Colors.RED}{Colors.BOLD}⚠️  INVALID DOMAIN / EXTENSION DETECTED:{Colors.END}
+             print(f"""{Colors.RED}{Colors.BOLD}[!] INVALID DOMAIN / EXTENSION DETECTED:{Colors.END}
    {typo.get('details', ["Unknown error"])[0]}
 """)
         else:
             brand = typo.get('impersonated_brand', 'unknown')
             brand_display = brand.upper() if brand else "UNKNOWN"
             
-            print(f"""{Colors.RED}{Colors.BOLD}⚠️  BRAND IMPERSONATION DETECTED:{Colors.END}
+            print(f"""{Colors.RED}{Colors.BOLD}[!] BRAND IMPERSONATION DETECTED:{Colors.END}
    Impersonated Brand: {brand_display}
    Method: {method}
    Similarity: {typo.get('similarity_score', 0)*100:.1f}%
@@ -141,19 +136,19 @@ async def interactive_mode(service, force_mllm=False):
     
     while True:
         try:
-            url = input(f"{Colors.CYAN}URL> {Colors.END}").strip()
+            url = input(f"{Colors.CYAN}URL > {Colors.END}").strip()
             
             if not url:
                 continue
             
             if url.lower() in ['quit', 'exit', 'q']:
-                print(f"\n{Colors.GREEN}Goodbye! Stay safe online. 🔒{Colors.END}\n")
+                print(f"\n{Colors.GREEN}Terminating session.{Colors.END}\n")
                 break
             
             await check_single_url(service, url, force_mllm)
             
         except KeyboardInterrupt:
-            print(f"\n\n{Colors.GREEN}Goodbye! Stay safe online. 🔒{Colors.END}\n")
+            print(f"\n\n{Colors.GREEN}Terminating session.{Colors.END}\n")
             break
         except Exception as e:
             print(f"{Colors.RED}Error: {e}{Colors.END}")
@@ -180,20 +175,20 @@ async def check_batch(service, filename, force_mllm=False):
         
         if result['classification'] == 'phishing':
             phishing_count += 1
-            icon = f"{Colors.RED}🚨 PHISHING{Colors.END}"
+            icon = f"{Colors.RED}[PHISHING]{Colors.END}"
         else:
             legitimate_count += 1
-            icon = f"{Colors.GREEN}✅ LEGIT{Colors.END}"
+            icon = f"{Colors.GREEN}[LEGIT]{Colors.END}"
         
         print(f"{icon} | {result['confidence']*100:5.1f}% | {url[:60]}")
     
     print(f"""
-{Colors.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
+{Colors.BOLD}================================================================={Colors.END}
 {Colors.CYAN}Summary:{Colors.END}
   Total URLs:  {len(urls)}
   {Colors.RED}Phishing:{Colors.END}    {phishing_count}
   {Colors.GREEN}Legitimate:{Colors.END}  {legitimate_count}
-{Colors.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
+{Colors.BOLD}================================================================={Colors.END}
 """)
 
 async def main():
