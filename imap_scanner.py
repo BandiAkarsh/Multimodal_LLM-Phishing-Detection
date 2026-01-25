@@ -129,14 +129,33 @@ def monitor_inbox():
                             body = ""
                             if msg.is_multipart():
                                 for part in msg.walk():
-                                    if part.get_content_type() == "text/plain":
-                                        body += part.get_content()
-                                    elif part.get_content_type() == "text/html":
-                                        soup = BeautifulSoup(part.get_content(), 'html.parser')
-                                        links = [a.get('href') for a in soup.find_all('a', href=True)]
-                                        body += " ".join(links)
+                                    content_type = part.get_content_type()
+                                    content_disposition = str(part.get("Content-Disposition"))
+                                    
+                                    if "attachment" in content_disposition:
+                                        continue
+                                        
+                                    try:
+                                        payload = part.get_payload(decode=True)
+                                        if not payload: continue
+                                        
+                                        text = payload.decode('utf-8', errors='ignore')
+                                        
+                                        if content_type == "text/plain":
+                                            body += text
+                                        elif content_type == "text/html":
+                                            soup = BeautifulSoup(text, 'html.parser')
+                                            links = [a.get('href') for a in soup.find_all('a', href=True)]
+                                            body += " ".join(links)
+                                    except:
+                                        pass
                             else:
-                                body = msg.get_content()
+                                try:
+                                    payload = msg.get_payload(decode=True)
+                                    if payload:
+                                        body = payload.decode('utf-8', errors='ignore')
+                                except:
+                                    pass
                             
                             urls = list(set(extract_urls_from_text(body)))
                             

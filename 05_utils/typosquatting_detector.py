@@ -125,9 +125,10 @@ HOMOGLYPHS = {
 VALID_TLDS = {
     'com', 'org', 'net', 'edu', 'gov', 'mil', 'int',
     'co', 'io', 'ai', 'app', 'dev', 'tech', 'online',
+    'to', 'me', 'ly', 'sh', 'gg', 'so', 'xyz', 'cloud', 'site', 'top', 'club', 'vip',
     'in', 'uk', 'us', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ru', 'br',
     'info', 'biz', 'name', 'pro', 'mobi', 'tv', 'me', 'cc',
-    'co.in', 'co.uk', 'com.au', 'com.br', 'co.jp',
+    'co.in', 'co.uk', 'com.au', 'com.br', 'co.jp', 'net.in', 'org.in',
 }
 
 # Common TLD typos (suspicious TLDs that look like real ones)
