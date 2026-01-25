@@ -126,7 +126,8 @@ class PhishingDetectionService:
                         
                         if links_count > 10 and has_title:
                             print(f"Site content validated: {links_count} links found. Reducing risk.")
-                            risk_score = max(0, risk_score - 20)
+                            # Increase bonus from -20 to -50 to save legitimate long URLs (like blog posts)
+                            risk_score = max(0, risk_score - 50)
                             
                 else:
                     # Scenario: "jurassicpark.com" (NXDOMAIN / Connection Refused)
