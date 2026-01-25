@@ -3,14 +3,18 @@
 Phishing URL Detector - Interactive CLI Tool
 
 Usage:
-    python detect.py                     # Interactive mode
-    python detect.py https://example.com # Single URL check
+    python detect.py                     # Interactive mode (Full Scan)
+    python detect.py --fast              # Interactive mode (Fast Scan)
+    python detect.py <url>               # Check single URL
+    python detect.py --fast <url>        # Check single URL (Fast Scan)
     python detect.py --batch urls.txt    # Check multiple URLs from file
 """
 
 import sys
 import os
 import json
+import asyncio
+import argparse
 
 # Add project paths
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -90,6 +94,9 @@ def print_result(result):
 {explanation}
 """)
     
+    if result.get('scraped'):
+        print(f"{Colors.GREEN}[Multimodal] Successfully scraped webpage content.{Colors.END}")
+    
     # Show typosquatting details if detected
     typo = result['features'].get('typosquatting', {})
     if typo.get('is_typosquatting'):
@@ -108,9 +115,24 @@ def print_result(result):
    Similarity: {typo.get('similarity_score', 0)*100:.1f}%
 """)
 
-def interactive_mode(service):
+async def check_single_url(service, url, force_mllm=False):
+    """Check a single URL."""
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    print(f"Scanning {url}...")
+    # Call the async version which supports scraping
+    result = await service.analyze_url_async(url, force_mllm=force_mllm)
+    print_result(result)
+    return result
+
+async def interactive_mode(service, force_mllm=False):
     """Run interactive mode for checking URLs."""
-    print(f"\n{Colors.YELLOW}Enter URLs to check (type 'quit' or 'exit' to stop):{Colors.END}\n")
+    print(f"\n{Colors.YELLOW}Enter URLs to check (type 'quit' or 'exit' to stop):{Colors.END}")
+    if force_mllm:
+        print(f"{Colors.MAGENTA}[Full Scan Mode Enabled - Scraping Active]{Colors.END}\n")
+    else:
+        print(f"{Colors.BLUE}[Fast Scan Mode - URL Analysis Only]{Colors.END}\n")
     
     while True:
         try:
@@ -123,13 +145,7 @@ def interactive_mode(service):
                 print(f"\n{Colors.GREEN}Goodbye! Stay safe online. 🔒{Colors.END}\n")
                 break
             
-            # Add https:// if no protocol specified
-            if not url.startswith(('http://', 'https://')):
-                url = 'https://' + url
-            
-            # Analyze URL
-            result = service.analyze_url(url)
-            print_result(result)
+            await check_single_url(service, url, force_mllm)
             
         except KeyboardInterrupt:
             print(f"\n\n{Colors.GREEN}Goodbye! Stay safe online. 🔒{Colors.END}\n")
@@ -137,16 +153,7 @@ def interactive_mode(service):
         except Exception as e:
             print(f"{Colors.RED}Error: {e}{Colors.END}")
 
-def check_single_url(service, url):
-    """Check a single URL."""
-    if not url.startswith(('http://', 'https://')):
-        url = 'https://' + url
-    
-    result = service.analyze_url(url)
-    print_result(result)
-    return result
-
-def check_batch(service, filename):
+async def check_batch(service, filename, force_mllm=False):
     """Check multiple URLs from a file."""
     if not os.path.exists(filename):
         print(f"{Colors.RED}Error: File '{filename}' not found{Colors.END}")
@@ -164,7 +171,7 @@ def check_batch(service, filename):
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
         
-        result = service.analyze_url(url)
+        result = await service.analyze_url_async(url, force_mllm=force_mllm)
         
         if result['classification'] == 'phishing':
             phishing_count += 1
@@ -184,37 +191,32 @@ def check_batch(service, filename):
 {Colors.BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{Colors.END}
 """)
 
-def main():
+async def main():
     print_banner()
     
-    # Initialize service
+    parser = argparse.ArgumentParser(description="Phishing URL Detector")
+    parser.add_argument("url", nargs="?", help="URL to check")
+    parser.add_argument("--fast", action="store_true", help="Disable scraping (Fast Mode)")
+    parser.add_argument("--batch", help="Batch process a file of URLs")
+    
+    args = parser.parse_args()
+    
+    # By default, use FULL scan (scraping enabled) unless --fast is specified
+    use_scraping = not args.fast
+    
     print(f"{Colors.YELLOW}Loading ML model...{Colors.END}")
     service = PhishingDetectionService(load_mllm=False, load_ml_model=True)
     print(f"{Colors.GREEN}Model loaded successfully!{Colors.END}")
     
-    # Parse arguments
-    if len(sys.argv) == 1:
-        # No arguments - interactive mode
-        interactive_mode(service)
-    elif sys.argv[1] == '--batch' and len(sys.argv) == 3:
-        # Batch mode
-        check_batch(service, sys.argv[2])
-    elif sys.argv[1] == '--help' or sys.argv[1] == '-h':
-        print(f"""
-{Colors.CYAN}Usage:{Colors.END}
-    python detect.py                     # Interactive mode
-    python detect.py <url>               # Check single URL
-    python detect.py --batch <file>      # Check URLs from file
-    
-{Colors.CYAN}Examples:{Colors.END}
-    python detect.py https://paypal.com
-    python detect.py paypa1.com
-    python detect.py --batch suspicious_urls.txt
-""")
+    if args.batch:
+        await check_batch(service, args.batch, force_mllm=use_scraping)
+    elif args.url:
+        await check_single_url(service, args.url, force_mllm=use_scraping)
     else:
-        # Single URL
-        url = sys.argv[1]
-        check_single_url(service, url)
+        await interactive_mode(service, force_mllm=use_scraping)
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
