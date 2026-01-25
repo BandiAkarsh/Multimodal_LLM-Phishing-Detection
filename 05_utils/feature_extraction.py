@@ -48,6 +48,76 @@ class URLFeatureExtractor:
         features['has_suspicious_words'] = URLFeatureExtractor._has_suspicious_words(url)
         features['entropy'] = URLFeatureExtractor._calculate_entropy(url)
         
+        # Domain specific features (New)
+        features['domain_entropy'] = URLFeatureExtractor._calculate_entropy(extracted.domain)
+        
+        # Heuristic for random domains:
+        # 1. Very high entropy (> 3.7) -> Likely random (e.g., 'abcdfghijk')
+        # 2. Moderately high entropy (> 2.7) + Mixed Numbers/Letters -> Likely generated (e.g., 'ahs227wy')
+        # 3. Gibberish check: Consonant clusters and Vowel ratio
+        
+        domain_text = extracted.domain.lower()
+        
+        # Calculate consonant clusters and vowel clusters
+        consonants = "bcdfghjklmnpqrstvwxyz"
+        vowels_list = "aeiou"
+        
+        max_consecutive_consonants = 0
+        current_consecutive_consonants = 0
+        
+        max_consecutive_vowels = 0
+        current_consecutive_vowels = 0
+        
+        for char in domain_text:
+            if char in consonants:
+                current_consecutive_consonants += 1
+                max_consecutive_consonants = max(max_consecutive_consonants, current_consecutive_consonants)
+                current_consecutive_vowels = 0
+            elif char in vowels_list:
+                current_consecutive_vowels += 1
+                max_consecutive_vowels = max(max_consecutive_vowels, current_consecutive_vowels)
+                current_consecutive_consonants = 0
+            else:
+                current_consecutive_consonants = 0
+                current_consecutive_vowels = 0
+        
+        # Calculate vowel ratio (excluding numbers)
+        letters_only = "".join([c for c in domain_text if c.isalpha()])
+        num_vowels = sum(1 for c in letters_only if c in vowels_list)
+        vowel_ratio = num_vowels / len(letters_only) if letters_only else 0
+        
+        features['max_consecutive_consonants'] = max_consecutive_consonants
+        features['max_consecutive_vowels'] = max_consecutive_vowels
+        features['vowel_ratio'] = vowel_ratio
+        
+        is_random = 0
+        has_digits = any(c.isdigit() for c in extracted.domain)
+        
+        if features['domain_entropy'] > 3.7:
+            is_random = 1
+        elif features['domain_entropy'] > 2.7 and has_digits:
+            is_random = 1
+        elif max_consecutive_consonants >= 5: # e.g. 'sqbqq'
+            is_random = 1
+        elif max_consecutive_vowels >= 3: # Reduced from 4 to 3 (e.g. 'aeiou')
+            is_random = 1
+        elif len(letters_only) > 4 and vowel_ratio < 0.15: # Very few vowels (e.g. 'ahsgyvwvb')
+            is_random = 1
+        # New check: High vowel ratio (too many vowels, e.g. 'aasaasaa' -> 0.75, 'asassasa' -> 0.5)
+        elif len(letters_only) > 5 and vowel_ratio >= 0.65: # Stricter threshold
+            is_random = 1
+        
+        # Repetitive pattern check (e.g., 'asassasa' has repetitive 'as')
+        if len(domain_text) > 6:
+            # Check for repeated substrings of length 2 or 3
+            for k in [2, 3]:
+                substrings = [domain_text[i:i+k] for i in range(len(domain_text)-k+1)]
+                if len(set(substrings)) < len(substrings) * 0.6: # High repetition
+                     is_random = 1
+                     break
+            
+        features['is_random_domain'] = is_random
+        
         return features
     
     @staticmethod

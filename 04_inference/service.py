@@ -124,6 +124,10 @@ class PhishingDetectionService:
             classification = "phishing"
             confidence = max(0.85, ml_confidence) if ml_prediction == 1 else 0.85
             recommended_action = "block" if risk_score >= 50 else "warn"
+        elif risk_score >= 40: # Heuristics override ML if risk is high (e.g. random domain)
+            classification = "phishing"
+            confidence = 0.75 # Heuristic confidence
+            recommended_action = "block" if risk_score >= 60 else "warn"
         elif ml_prediction is not None:
             classification = "phishing" if ml_prediction == 1 else "legitimate"
             confidence = ml_confidence
@@ -222,6 +226,15 @@ class PhishingDetectionService:
         if entropy > 4.5:
             score += 10
             
+        # Domain Entropy (Specific check for random string domains)
+        domain_entropy = features.get('domain_entropy', 0)
+        is_random = features.get('is_random_domain', 0)
+        
+        if is_random:
+            score += 45 # High penalty for randomness (almost certainly phishing/DGA)
+        if domain_entropy > 3.5:
+            score += 15 # Extra penalty for very high entropy
+            
         # Character-based risks
         if features.get('num_hyphens', 0) > 3:
             score += 10
@@ -242,10 +255,25 @@ class PhishingDetectionService:
             if method == 'faulty_extension':
                 details = typosquat.get('details', ["Faulty extension detected"])[0]
                 issues.append(details)
+            elif method == 'invalid_domain_structure' or method == 'invalid_extension':
+                 details = typosquat.get('details', ["Invalid domain detected"])[0]
+                 issues.append(details)
             else:
                 brand = typosquat.get('impersonated_brand', 'unknown')
                 issues.append(f"BRAND IMPERSONATION: Attempting to mimic '{brand}' ({method})")
         
+        if features.get('is_random_domain', 0):
+            if features.get('max_consecutive_consonants', 0) >= 5:
+                issues.append("Suspicious domain pattern: Unpronounceable (too many consecutive consonants)")
+            elif features.get('max_consecutive_vowels', 0) >= 4:
+                issues.append("Suspicious domain pattern: Unpronounceable (too many consecutive vowels)")
+            elif features.get('vowel_ratio', 1) < 0.15:
+                issues.append("Suspicious domain pattern: Gibberish (lack of vowels)")
+            elif features.get('vowel_ratio', 0) > 0.75:
+                issues.append("Suspicious domain pattern: Gibberish (excessive vowels)")
+            else:
+                issues.append("High entropy domain name with no recognizable pattern")
+            
         if features.get('is_ip_address'):
             issues.append("URL uses an IP address instead of domain name")
         if not features.get('is_https'):
