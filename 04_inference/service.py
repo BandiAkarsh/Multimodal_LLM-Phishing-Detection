@@ -108,6 +108,7 @@ class PhishingDetectionService:
         
         html_summary = {}
         scrape_success = False
+        proof = None
         
         if needs_scraping:
             print(f"Initiating Multimodal Scrape for {url}...")
@@ -117,6 +118,18 @@ class PhishingDetectionService:
                 if scrape_result['success']:
                     scrape_success = True
                     html_summary = scrape_result['dom_structure']
+                    
+                    # PROOF OF SCRAPING
+                    proof = {
+                        'title': html_summary.get('title', 'No Title'),
+                        'html_size_bytes': len(scrape_result.get('html', '')),
+                        'screenshot_size': scrape_result.get('screenshot').size if scrape_result.get('screenshot') else (0,0),
+                        'num_links': html_summary.get('num_links', 0),
+                        'num_images': html_summary.get('num_images', 0)
+                    }
+                    print(f"   [PROOF] Scraped Title: {proof['title']}")
+                    print(f"   [PROOF] HTML Size: {proof['html_size_bytes']} bytes")
+                    print(f"   [PROOF] Screenshot Resolution: {proof['screenshot_size']}")
                     
                     # Content Credibility Bonus
                     # If site works and has substantial content, reduce risk from "random domain" heuristic
@@ -191,7 +204,8 @@ class PhishingDetectionService:
             'recommended_action': recommended_action,
             'ml_model_used': self.ml_model_loaded,
             'mllm_used': (self.mllm_transformer is not None) and needs_scraping,
-            'scraped': scrape_success
+            'scraped': scrape_success,
+            'scrape_proof': proof if scrape_success else None
         }
 
     def analyze_url(self, url: str, force_mllm: bool = False) -> dict:

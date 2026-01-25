@@ -96,6 +96,11 @@ def print_result(result):
     
     if result.get('scraped'):
         print(f"{Colors.GREEN}[Multimodal] Successfully scraped webpage content.{Colors.END}")
+        proof = result.get('scrape_proof')
+        if proof:
+            print(f"   {Colors.BLUE}📄 Title:{Colors.END} {proof.get('title')}")
+            print(f"   {Colors.BLUE}📦 Content Size:{Colors.END} {proof.get('html_size_bytes')} bytes")
+            print(f"   {Colors.BLUE}🖼️  Screenshot:{Colors.END} {proof.get('screenshot_size')}")
     
     # Show typosquatting details if detected
     typo = result['features'].get('typosquatting', {})
