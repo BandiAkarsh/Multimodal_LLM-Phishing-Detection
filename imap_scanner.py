@@ -166,17 +166,19 @@ def monitor_inbox():
                                     res = service.analyze_url(url)
                                     if res['classification'] == 'phishing':
                                         phishing_found = True
-                                        print(f"  {Colors.RED}🚨 PHISHING: {url}{Colors.END}")
+                                        print(f"  {Colors.RED}[PHISHING] {url}{Colors.END}")
                                         print(f"     Reason: {res['explanation']}")
                                     else:
-                                        pass # Safe links are silent to reduce noise
+                                        # Optional: Uncomment to see safe links
+                                        # print(f"  {Colors.GREEN}[SAFE] {url}{Colors.END}")
+                                        pass
                                 
                                 if phishing_found:
-                                    print(f"{Colors.RED}{Colors.BOLD}🚫 DANGER: Phishing detected in this email!{Colors.END}")
+                                    print(f"{Colors.RED}{Colors.BOLD}[!] DANGER: Phishing detected in this email!{Colors.END}")
                                 else:
-                                    print(f"{Colors.GREEN}✅ Safe email.{Colors.END}")
+                                    print(f"{Colors.GREEN}[OK] Safe email.{Colors.END}")
                             else:
-                                print(f"{Colors.GREEN}No links found.{Colors.END}")
+                                print(f"{Colors.GREEN}[OK] No links found.{Colors.END}")
                                 
                 last_checked_id = current_max_id
             
