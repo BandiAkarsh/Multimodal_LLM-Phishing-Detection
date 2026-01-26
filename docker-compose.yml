@@ -1,5 +1,10 @@
 # Phishing Detection System - Docker Compose
 # Multi-container setup for production deployment
+#
+# Features:
+# - Internet-aware detection with web scraping
+# - Redis cache for performance
+# - Health checks with connectivity status
 
 version: '3.8'
 
@@ -14,17 +19,26 @@ services:
     environment:
       - LOAD_MLLM=false
       - PORT=8000
+      # Connectivity settings
+      - CONNECTIVITY_CHECK_INTERVAL=30
+      - SCRAPING_TIMEOUT=30000
     volumes:
       - ./02_models:/app/02_models:ro
     restart: unless-stopped
+    # Network configuration for internet access
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+    networks:
+      - phishing_net
 
-  # Redis Cache (for production)
+  # Redis Cache (for production caching of results)
   redis:
     image: redis:7-alpine
     ports:
@@ -32,8 +46,15 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - phishing_net
 
-  # Nginx Load Balancer (optional, for scaling)
+  # Optional: Nginx Load Balancer (for scaling)
   # nginx:
   #   image: nginx:alpine
   #   ports:
@@ -43,10 +64,13 @@ services:
   #   depends_on:
   #     - api
   #   restart: unless-stopped
+  #   networks:
+  #     - phishing_net
 
 volumes:
   redis_data:
 
 networks:
-  default:
+  phishing_net:
     name: phishing_detection_network
+    driver: bridge
