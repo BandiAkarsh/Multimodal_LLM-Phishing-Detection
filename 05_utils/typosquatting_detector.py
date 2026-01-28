@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Set
 
 # Get project root
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TLD_JSON_PATH = os.path.join(PROJECT_ROOT, 'tld-list-details.json')
+TLD_JSON_PATH = os.path.join(PROJECT_ROOT, '01_data', 'external', 'tld_list.json')
 
 
 def load_valid_tlds() -> Set[str]:
