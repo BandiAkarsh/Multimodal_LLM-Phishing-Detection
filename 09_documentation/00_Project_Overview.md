@@ -45,6 +45,8 @@ The project includes **Thunderbird Phishing Guard**, a MailExtension that:
 | `08_GUI_Guide.md` | Desktop GUI application guide |
 | `10_gophish_testing.md`| Specialized guide for toolkit testing |
 | `11_Thunderbird_Extension.md` | Thunderbird add-on guide |
+| `12_User_Manual.md` | Non-technical guide for the Unified Suite |
+| `13_Implementation_Guide.md` | Technical breakdown of the Suite architecture |
 
 ## System Architecture
 
