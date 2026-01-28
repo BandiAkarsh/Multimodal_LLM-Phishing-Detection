@@ -3,6 +3,12 @@
 ## Overview
 Phishing Guard is a professional-grade email security suite that provides 24/7 background protection against phishing attacks. It works across all your email services (Gmail, Outlook, Thunderbird, etc.) by monitoring the mail server directly and alerting you with desktop notifications.
 
+## 📋 Important Considerations
+
+- **Download Size**: Phishing Guard uses a sophisticated 3-Billion parameter Large Language Model (LLM) and a security-focused headless browser. The initial setup will download approximately **3GB to 5GB** of data.
+- **Disk Space**: Please ensure you have at least **6GB** of free disk space for a full installation.
+- **Privacy First**: All analysis happens **locally on your computer**. No email content or private keys are ever sent to a remote server.
+
 ## 3-Step Setup
 
 ### 1. Link Your Account
