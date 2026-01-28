@@ -3,10 +3,14 @@
 Phishing URL Detector - Interactive CLI Tool
 
 This is the main command-line interface for the phishing detection system.
-It supports INTERNET-AWARE detection:
+It supports INTERNET-AWARE detection with 4-CATEGORY CLASSIFICATION:
 
-- ONLINE MODE: Full web scraping + content analysis (more accurate)
-- OFFLINE MODE: Static URL analysis (fallback when no internet)
+Classifications:
+- LEGITIMATE (Green): Safe website
+- PHISHING (Red): Traditional phishing attack
+- AI_GENERATED_PHISHING (Orange): AI-created phishing
+- PHISHING_KIT (Dark Red): Toolkit-based phishing (Gophish, etc.)
+- UNKNOWN (Yellow): Unable to determine (unreachable, error)
 
 Usage:
     python detect.py                     # Interactive mode
@@ -33,14 +37,15 @@ from service import PhishingDetectionService
 try:
     from connectivity import check_internet_connection, get_connectivity_status
 except ImportError:
-    # Fallback if module not found
     def check_internet_connection():
         return True
     def get_connectivity_status():
         return {'is_online': True, 'mode': 'online'}
 
-# Colors for terminal output
+
 class Colors:
+    """Terminal color codes for all classification types."""
+    # Basic colors
     RED = '\033[91m'
     GREEN = '\033[92m'
     YELLOW = '\033[93m'
@@ -50,30 +55,81 @@ class Colors:
     WHITE = '\033[97m'
     BOLD = '\033[1m'
     END = '\033[0m'
+    
+    # Extended colors for 4-category classification
+    DARK_RED = '\033[38;5;124m'    # Dark red for PHISHING_KIT
+    ORANGE = '\033[38;5;208m'       # Orange for AI_GENERATED
+    GRAY = '\033[38;5;245m'         # Gray for UNKNOWN
+
+
+# Classification display configuration
+CLASSIFICATION_CONFIG = {
+    'legitimate': {
+        'color': Colors.GREEN,
+        'icon': 'SAFE',
+        'emoji': '(ok)',
+        'label': 'LEGITIMATE',
+    },
+    'phishing': {
+        'color': Colors.RED,
+        'icon': 'DANGER',
+        'emoji': '(!)',
+        'label': 'PHISHING DETECTED',
+    },
+    'ai_generated_phishing': {
+        'color': Colors.ORANGE,
+        'icon': 'AI-PHISH',
+        'emoji': '[AI]',
+        'label': 'AI-GENERATED PHISHING',
+    },
+    'phishing_kit': {
+        'color': Colors.DARK_RED,
+        'icon': 'TOOLKIT',
+        'emoji': '[KIT]',
+        'label': 'PHISHING KIT ATTACK',
+    },
+    'unknown': {
+        'color': Colors.YELLOW,
+        'icon': 'UNKNOWN',
+        'emoji': '(?)',
+        'label': 'UNKNOWN / ERROR',
+    },
+    'error': {
+        'color': Colors.GRAY,
+        'icon': 'ERROR',
+        'emoji': '[ERR]',
+        'label': 'ANALYSIS ERROR',
+    },
+}
+
 
 def print_banner(is_online: bool = True):
     """Display the application banner with connectivity status."""
     mode_color = Colors.GREEN if is_online else Colors.YELLOW
     mode_text = "ONLINE - Full Analysis" if is_online else "OFFLINE - Static Analysis"
-    mode_icon = "🌐" if is_online else "📴"
+    mode_icon = "[NET]" if is_online else "[OFF]"
     
     print(f"""
 {Colors.CYAN}{Colors.BOLD}
-╔═══════════════════════════════════════════════════════════════╗
-║                                                               ║
-║   🔒 PHISHING URL DETECTOR                                    ║
-║   Multimodal LLM-based Phishing Detection System              ║
-║                                                               ║
-║   ML Model: Random Forest (99.8% F1 Score)                    ║
-║   Features: Typosquatting + URL Analysis + Web Scraping       ║
-║                                                               ║
-╠═══════════════════════════════════════════════════════════════╣
-║   {mode_icon} Mode: {mode_color}{mode_text:^45}{Colors.CYAN}║
-╚═══════════════════════════════════════════════════════════════╝
++===================================================================+
+|                                                                   |
+|   PHISHING URL DETECTOR                                           |
+|   Multimodal LLM-based Phishing Detection System                  |
+|                                                                   |
+|   ML Model: Random Forest (99.8% F1 Score)                        |
+|   Features: Typosquatting + URL Analysis + Web Scraping           |
+|                                                                   |
+|   Classification Categories:                                      |
+|   {Colors.GREEN}[LEGIT]{Colors.CYAN} Safe     {Colors.RED}[PHISH]{Colors.CYAN} Danger     {Colors.ORANGE}[AI]{Colors.CYAN} AI-Gen     {Colors.DARK_RED}[KIT]{Colors.CYAN} Toolkit   |
+|                                                                   |
++-------------------------------------------------------------------+
+|   {mode_icon} Mode: {mode_color}{mode_text:^45}{Colors.CYAN}|
++===================================================================+
 {Colors.END}""")
 
+
 def print_result(result):
-    """Pretty print the analysis result."""
+    """Pretty print the analysis result with proper 4-category display."""
     url = result['url']
     classification = result['classification']
     confidence = result['confidence']
@@ -82,13 +138,12 @@ def print_result(result):
     action = result['recommended_action']
     analysis_mode = result.get('analysis_mode', 'unknown')
     
-    # Color based on classification
-    if classification == 'phishing':
-        color = Colors.RED
-        status = "⚠️  PHISHING DETECTED"
-    else:
-        color = Colors.GREEN
-        status = "✅ LEGITIMATE"
+    # Get classification config
+    config = CLASSIFICATION_CONFIG.get(classification, CLASSIFICATION_CONFIG['unknown'])
+    color = config['color']
+    icon = config['icon']
+    emoji = config['emoji']
+    label = config['label']
     
     # Action color
     if action == 'block':
@@ -99,16 +154,13 @@ def print_result(result):
         action_color = Colors.GREEN
     
     # Analysis mode indicator
-    if analysis_mode == 'online':
-        mode_indicator = f"{Colors.GREEN}[ONLINE]{Colors.END}"
-    elif analysis_mode == 'offline':
-        mode_indicator = f"{Colors.YELLOW}[OFFLINE]{Colors.END}"
-    elif analysis_mode == 'online_failed':
-        mode_indicator = f"{Colors.YELLOW}[SCRAPE FAILED]{Colors.END}"
-    elif analysis_mode == 'whitelist':
-        mode_indicator = f"{Colors.BLUE}[WHITELISTED]{Colors.END}"
-    else:
-        mode_indicator = ""
+    mode_indicators = {
+        'online': f"{Colors.GREEN}[ONLINE]{Colors.END}",
+        'offline': f"{Colors.YELLOW}[OFFLINE]{Colors.END}",
+        'online_failed': f"{Colors.YELLOW}[SCRAPE FAILED]{Colors.END}",
+        'whitelist': f"{Colors.BLUE}[WHITELISTED]{Colors.END}",
+    }
+    mode_indicator = mode_indicators.get(analysis_mode, f"{Colors.GRAY}[UNKNOWN]{Colors.END}")
     
     print(f"""
 {Colors.BOLD}================================================================={Colors.END}
@@ -116,7 +168,7 @@ def print_result(result):
 {Colors.CYAN}Analysis Mode:{Colors.END} {mode_indicator}
 {Colors.BOLD}================================================================={Colors.END}
 
-{color}{Colors.BOLD}{status}{Colors.END}
+{color}{Colors.BOLD}{emoji} {label}{Colors.END}
 
 {Colors.BLUE}Confidence:{Colors.END}  {confidence*100:.1f}%
 {Colors.BLUE}Risk Score:{Colors.END}  {risk_score}/100
@@ -126,6 +178,7 @@ def print_result(result):
 {explanation}
 """)
     
+    # Show scrape info
     if result.get('scraped'):
         print(f"{Colors.GREEN}[INFO] Successfully scraped webpage content.{Colors.END}")
         proof = result.get('scrape_proof')
@@ -134,8 +187,27 @@ def print_result(result):
             print(f"   {Colors.BLUE}Size:{Colors.END} {proof.get('html_size_bytes', 0)} bytes")
             print(f"   {Colors.BLUE}Links:{Colors.END} {proof.get('num_links', 0)}")
             print(f"   {Colors.BLUE}Forms:{Colors.END} {proof.get('num_forms', 0)}")
+            
+            # Show toolkit detection
+            if proof.get('toolkit_detected'):
+                print(f"   {Colors.DARK_RED}Toolkit:{Colors.END} {proof.get('toolkit_name', 'Unknown')}")
+    elif analysis_mode == 'online_failed':
+        print(f"{Colors.YELLOW}[WARNING] Could not reach website.{Colors.END}")
     
-    # Show typosquatting details if detected
+    # Show AI indicators
+    if result.get('ai_indicators'):
+        print(f"{Colors.ORANGE}[AI DETECTION] Found AI-generated content patterns:{Colors.END}")
+        for indicator in result['ai_indicators'][:3]:
+            print(f"   - {indicator}")
+    
+    # Show toolkit signatures
+    if result.get('toolkit_signatures', {}).get('detected'):
+        sigs = result['toolkit_signatures']
+        print(f"{Colors.DARK_RED}[TOOLKIT DETECTION] {sigs.get('toolkit_name', 'Unknown')} detected:{Colors.END}")
+        for sig in sigs.get('signatures_found', [])[:3]:
+            print(f"   - {sig}")
+    
+    # Show typosquatting details
     typo = result['features'].get('typosquatting', {})
     if typo.get('is_typosquatting'):
         method = typo.get('detection_method', 'unknown')
@@ -143,7 +215,7 @@ def print_result(result):
             print(f"""{Colors.RED}{Colors.BOLD}[!] INVALID DOMAIN / EXTENSION DETECTED:{Colors.END}
    {typo.get('details', ["Unknown error"])[0]}
 """)
-        else:
+        elif not typo.get('content_verified'):
             brand = typo.get('impersonated_brand', 'unknown')
             brand_display = brand.upper() if brand else "UNKNOWN"
             
@@ -152,6 +224,10 @@ def print_result(result):
    Method: {method}
    Similarity: {typo.get('similarity_score', 0)*100:.1f}%
 """)
+        else:
+            print(f"{Colors.GREEN}[VERIFIED] Content verification passed:{Colors.END}")
+            print(f"   {typo.get('verification_reason', 'Legitimate content detected')}")
+
 
 async def check_single_url(service, url, force_scraping=True):
     """Check a single URL."""
@@ -160,10 +236,10 @@ async def check_single_url(service, url, force_scraping=True):
     
     print(f"\n{Colors.CYAN}Analyzing {url}...{Colors.END}")
     
-    # Call the async version which supports scraping
     result = await service.analyze_url_async(url, force_mllm=force_scraping)
     print_result(result)
     return result
+
 
 async def interactive_mode(service, is_online: bool = True):
     """Run interactive mode for checking URLs."""
@@ -188,7 +264,6 @@ async def interactive_mode(service, is_online: bool = True):
                 break
             
             if url.lower() == 'refresh':
-                # Force refresh connectivity check
                 new_status = service.refresh_connectivity()
                 if new_status:
                     print(f"{Colors.GREEN}[ONLINE] Internet connection restored!{Colors.END}")
@@ -204,6 +279,7 @@ async def interactive_mode(service, is_online: bool = True):
         except Exception as e:
             print(f"{Colors.RED}Error: {e}{Colors.END}")
 
+
 async def check_batch(service, filename, is_online: bool = True):
     """Check multiple URLs from a file."""
     if not os.path.exists(filename):
@@ -216,8 +292,14 @@ async def check_batch(service, filename, is_online: bool = True):
     mode_text = "ONLINE (Full Analysis)" if is_online else "OFFLINE (Static Analysis)"
     print(f"\n{Colors.CYAN}Checking {len(urls)} URLs in {mode_text} mode...{Colors.END}\n")
     
-    phishing_count = 0
-    legitimate_count = 0
+    # Counters for all 4 categories
+    counts = {
+        'legitimate': 0,
+        'phishing': 0,
+        'ai_generated_phishing': 0,
+        'phishing_kit': 0,
+        'unknown': 0,
+    }
     results = []
     
     for i, url in enumerate(urls, 1):
@@ -230,31 +312,35 @@ async def check_batch(service, filename, is_online: bool = True):
             result = await service.analyze_url_async(url, force_mllm=is_online)
             results.append(result)
             
-            if result['classification'] == 'phishing':
-                phishing_count += 1
-                icon = f"{Colors.RED}[PHISHING]{Colors.END}"
-            else:
-                legitimate_count += 1
-                icon = f"{Colors.GREEN}[LEGIT]{Colors.END}"
+            classification = result['classification']
+            counts[classification] = counts.get(classification, 0) + 1
+            
+            config = CLASSIFICATION_CONFIG.get(classification, CLASSIFICATION_CONFIG['unknown'])
+            icon = f"{config['color']}[{config['icon'][:5]:^5}]{Colors.END}"
             
             mode = result.get('analysis_mode', '?')[:3].upper()
             print(f"{icon} [{mode}] | {result['confidence']*100:5.1f}% | {url[:55]}")
         except Exception as e:
-            print(f"{Colors.RED}[ERROR]{Colors.END}         | {url[:55]} - {e}")
+            print(f"{Colors.GRAY}[ERROR]{Colors.END}         | {url[:55]} - {e}")
+            counts['unknown'] = counts.get('unknown', 0) + 1
     
     print(f"""
 {Colors.BOLD}================================================================={Colors.END}
 {Colors.CYAN}Summary:{Colors.END}
-  Total URLs:    {len(urls)}
-  {Colors.RED}Phishing:{Colors.END}     {phishing_count}
-  {Colors.GREEN}Legitimate:{Colors.END}   {legitimate_count}
-  Analysis Mode: {mode_text}
+  Total URLs:          {len(urls)}
+  {Colors.GREEN}Legitimate:{Colors.END}         {counts.get('legitimate', 0)}
+  {Colors.RED}Phishing:{Colors.END}           {counts.get('phishing', 0)}
+  {Colors.ORANGE}AI-Generated:{Colors.END}       {counts.get('ai_generated_phishing', 0)}
+  {Colors.DARK_RED}Phishing Kit:{Colors.END}       {counts.get('phishing_kit', 0)}
+  {Colors.YELLOW}Unknown/Error:{Colors.END}      {counts.get('unknown', 0)}
+  Analysis Mode:       {mode_text}
 {Colors.BOLD}================================================================={Colors.END}
 """)
 
+
 async def main():
     parser = argparse.ArgumentParser(
-        description="Phishing URL Detector - Internet-Aware Detection System",
+        description="Phishing URL Detector - Internet-Aware Detection System with 4-Category Classification",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -262,7 +348,13 @@ Examples:
   python detect.py https://example.com      # Check single URL
   python detect.py --batch urls.txt         # Check multiple URLs
   python detect.py --offline                # Force offline mode
-  python detect.py --offline https://x.com  # Check URL in offline mode
+
+Classifications:
+  LEGITIMATE           - Safe website (Green)
+  PHISHING             - Traditional phishing (Red)
+  AI_GENERATED_PHISHING - AI-created phishing (Orange)
+  PHISHING_KIT         - Toolkit attack (Dark Red)
+  UNKNOWN              - Unable to determine (Yellow)
         """
     )
     parser.add_argument("url", nargs="?", help="URL to check")
@@ -286,7 +378,7 @@ Examples:
         else:
             print(f"{Colors.YELLOW}No connection - using offline mode{Colors.END}")
     
-    # Print banner with connectivity status
+    # Print banner
     print_banner(is_online)
     
     # Initialize service
@@ -308,6 +400,7 @@ Examples:
         await check_single_url(service, args.url, force_scraping=use_scraping)
     else:
         await interactive_mode(service, is_online=use_scraping)
+
 
 if __name__ == "__main__":
     try:

@@ -1,9 +1,12 @@
 """
 Phishing Detection Service - Core Detection Engine with 4-Category Classification
 
-This is the main service class that orchestrates all phishing detection logic.
-It classifies URLs into 4 categories:
+CRITICAL DESIGN PRINCIPLE:
+When ONLINE, content-based analysis ALWAYS takes precedence over static URL analysis.
+This prevents false positives like "kotaksalesianschool-vizag.com" being flagged
+as phishing just because it contains "kotak" in the domain name.
 
+Classification Categories:
 1. LEGITIMATE - Safe, authentic website
 2. PHISHING - Traditional manually-created phishing attack
 3. AI_GENERATED_PHISHING - Phishing created using AI tools (ChatGPT, etc.)
@@ -12,6 +15,7 @@ It classifies URLs into 4 categories:
 Detection Modes:
 1. ONLINE MODE (Internet Available):
    - Performs full web scraping to analyze actual website content
+   - Content verification OVERRIDES static brand detection
    - Detects toolkit signatures (Gophish ?rid= params, form structures)
    - Uses MLLM to detect AI-generated content
    - Most accurate classification
@@ -66,18 +70,12 @@ class PhishingDetectionService:
     """
     Main service for phishing detection with 4-category classification.
     
-    Classification Categories:
-    - LEGITIMATE: Safe website
-    - PHISHING: Traditional phishing attack
-    - AI_GENERATED_PHISHING: AI-created phishing (ChatGPT, etc.)
-    - PHISHING_KIT: Toolkit-based phishing (Gophish, HiddenEye, etc.)
-    
-    This service implements INTERNET-AWARE detection:
-    - When online: Scrapes websites, detects toolkits, analyzes AI patterns
-    - When offline: Falls back to static URL heuristics (limited classification)
+    IMPORTANT: Content-based analysis takes precedence over static detection
+    when online. This prevents false positives for legitimate sites that
+    happen to contain brand keywords in their domain names.
     """
     
-    # Whitelisted domains for marketing/infrastructure that often have "messy" URLs
+    # Whitelisted domains
     WHITELISTED_DOMAINS = {
         'customeriomail.com', 'sendgrid.net', 'mailchimp.com', 'google.com',
         'github.com', 'microsoft.com', 'cursor.com', 'cursor.sh',
@@ -86,13 +84,7 @@ class PhishingDetectionService:
     }
     
     def __init__(self, load_mllm=False, load_ml_model=True):
-        """
-        Initialize the phishing detection service.
-        
-        Args:
-            load_mllm: Whether to load the MLLM model (GPU-intensive, enables AI detection)
-            load_ml_model: Whether to load the ML classifier (recommended)
-        """
+        """Initialize the phishing detection service."""
         self.url_extractor = URLFeatureExtractor()
         self.typosquatting_detector = TyposquattingDetector()
         self.mllm_transformer = None
@@ -112,7 +104,7 @@ class PhishingDetectionService:
         else:
             print("Internet connection: OFFLINE - Limited to LEGITIMATE/PHISHING classification")
         
-        # Load ML classifier (lightweight, fast)
+        # Load ML classifier
         if load_ml_model:
             try:
                 model_dir = os.path.join(project_root, '02_models')
@@ -125,7 +117,7 @@ class PhishingDetectionService:
                 print(f"Warning: Could not load ML model: {e}")
                 self.ml_model_loaded = False
         
-        # Load MLLM (heavy, for AI detection and explanations)
+        # Load MLLM
         if load_mllm:
             try:
                 print("Loading MLLM model for AI-generated content detection...")
@@ -156,53 +148,37 @@ class PhishingDetectionService:
         """
         Analyze a URL for phishing indicators with 4-category classification.
         
-        This method automatically chooses the best analysis approach:
-        - ONLINE: Full web scraping + toolkit detection + AI analysis
-        - OFFLINE: Static URL analysis (limited to LEGITIMATE/PHISHING)
-        
-        Args:
-            url: The URL to analyze
-            force_mllm: Force MLLM explanation (only works if MLLM is loaded)
-        
-        Returns:
-            dict: Analysis result with classification, confidence, risk_score, etc.
+        PRIORITY ORDER:
+        1. Whitelist check (fastest)
+        2. For ONLINE mode: Scrape FIRST, then verify static detection with content
+        3. For OFFLINE mode: Use static analysis only
         """
-        # Tier 0: Check Whitelist first (fastest path)
+        # Tier 0: Check Whitelist first
         extracted = tldextract.extract(url)
         domain_part = f"{extracted.domain}.{extracted.suffix}"
         if domain_part in self.WHITELISTED_DOMAINS:
             return self._create_whitelist_result(url, domain_part)
         
-        # Check current connectivity status
+        # Check connectivity
         is_online = self.is_online
         
         if is_online:
-            # ONLINE MODE: Full multimodal analysis with 4-category classification
+            # ONLINE MODE: Scrape first, then verify
             return await self._analyze_with_scraping(url, force_mllm)
         else:
-            # OFFLINE MODE: Static analysis (limited classification)
+            # OFFLINE MODE: Static analysis only
             return self._analyze_static_fallback(url, force_mllm)
     
     async def _analyze_with_scraping(self, url: str, force_mllm: bool = False) -> dict:
         """
-        Full multimodal analysis with 4-category classification (ONLINE MODE).
+        Full multimodal analysis (ONLINE MODE).
         
-        Classification Priority:
-        1. PHISHING_KIT - If toolkit signatures detected (Gophish, HiddenEye, etc.)
-        2. AI_GENERATED_PHISHING - If AI-generated content patterns found
-        3. PHISHING - If suspicious but no toolkit/AI indicators
-        4. LEGITIMATE - If no threats detected
+        CRITICAL: We scrape FIRST, then use content to verify/override static detection.
+        This prevents false positives like schools being flagged as bank phishing.
         """
-        # Quick typosquatting check first
-        typosquat_result = self.typosquatting_detector.analyze(url)
+        print(f"[ONLINE MODE] Analyzing {url}...")
         
-        # If obvious TLD typo (like .pom instead of .com), skip scraping
-        if typosquat_result.get('is_typosquatting'):
-            if typosquat_result.get('detection_method') in ['faulty_extension', 'invalid_extension', 'invalid_domain_structure']:
-                return self._create_typosquat_result(url, typosquat_result)
-        
-        # Attempt web scraping with toolkit detection
-        print(f"[ONLINE MODE] Scraping {url} for 4-category analysis...")
+        # Attempt web scraping FIRST
         scraper = WebScraper(headless=True, timeout=30000)
         scrape_result = None
         scrape_success = False
@@ -215,10 +191,12 @@ class PhishingDetectionService:
             if scrape_success:
                 html_summary = scrape_result.get('dom_structure', {})
                 toolkit_signatures = scrape_result.get('toolkit_signatures', {})
+                page_title = html_summary.get('title', '')
+                text_content = scrape_result.get('text_content', '')
                 
-                # Create proof of scraping
+                # Create proof
                 proof = {
-                    'title': html_summary.get('title', 'No Title'),
+                    'title': page_title[:60] if page_title else 'No Title',
                     'html_size_bytes': len(scrape_result.get('html', '')),
                     'screenshot_size': scrape_result.get('screenshot').size if scrape_result.get('screenshot') else (0, 0),
                     'num_links': html_summary.get('num_links', 0),
@@ -229,21 +207,38 @@ class PhishingDetectionService:
                     'toolkit_name': toolkit_signatures.get('toolkit_name', None),
                 }
                 
-                print(f"   [SUCCESS] Scraped: {proof['title'][:50]}...")
+                print(f"   [SUCCESS] Scraped: {proof['title']}")
                 
-                if toolkit_signatures.get('detected'):
-                    print(f"   [TOOLKIT] Detected: {toolkit_signatures['toolkit_name']}")
+                # NOW do typosquatting check WITH content verification
+                typosquat_result = self.typosquatting_detector.analyze(url)
                 
-                # Use 4-CATEGORY classification
+                # If typosquatting was detected but content verification is available
+                if typosquat_result.get('requires_content_verification') and page_title:
+                    typosquat_result = self.typosquatting_detector.verify_with_content(
+                        typosquat_result, page_title, text_content
+                    )
+                    if typosquat_result.get('content_verified') and not typosquat_result.get('is_typosquatting'):
+                        print(f"   [CONTENT OK] {typosquat_result.get('verification_reason', 'Content verified')}")
+                
+                # Only skip to typosquat result for STRUCTURAL issues (TLD typos)
+                if typosquat_result.get('is_typosquatting'):
+                    method = typosquat_result.get('detection_method')
+                    if method in ['faulty_extension', 'invalid_extension', 'invalid_domain_structure']:
+                        return self._create_typosquat_result(url, typosquat_result)
+                
+                # Use CONTENT-BASED 4-category classification
                 return self._analyze_scraped_content_4cat(
                     url, scrape_result, typosquat_result, proof, force_mllm
                 )
             else:
                 print(f"   [FAILED] Could not scrape {url}")
+                # Scrape failed - now use static analysis with typosquatting
+                typosquat_result = self.typosquatting_detector.analyze(url)
                 return self._analyze_unreachable_site(url, typosquat_result)
                 
         except Exception as e:
             print(f"   [ERROR] Scraping error: {e}")
+            typosquat_result = self.typosquatting_detector.analyze(url)
             return self._analyze_unreachable_site(url, typosquat_result)
         finally:
             await scraper.close()
@@ -257,15 +252,17 @@ class PhishingDetectionService:
         Priority Order:
         1. PHISHING_KIT - Toolkit signatures (highest confidence)
         2. AI_GENERATED_PHISHING - AI content patterns
-        3. PHISHING - Traditional phishing indicators
-        4. LEGITIMATE - No threats
+        3. Content-verified legitimate (overrides static detection)
+        4. PHISHING - Traditional phishing indicators
+        5. LEGITIMATE - No threats
         """
         html_summary = scrape_result.get('dom_structure', {})
         toolkit_signatures = scrape_result.get('toolkit_signatures', {})
         text_content = scrape_result.get('text_content', '')
         html_content = scrape_result.get('html', '')
+        page_title = html_summary.get('title', '')
         
-        # Initialize classification
+        # Initialize
         classification = 'legitimate'
         confidence = 0.85
         risk_score = 0
@@ -275,7 +272,7 @@ class PhishingDetectionService:
         if toolkit_signatures.get('detected'):
             classification = 'phishing_kit'
             confidence = toolkit_signatures.get('confidence', 0.85)
-            risk_score = 85 + (confidence * 15)  # 85-100 range
+            risk_score = 85 + (confidence * 15)
             
             toolkit_name = toolkit_signatures.get('toolkit_name', 'Unknown')
             signatures = toolkit_signatures.get('signatures_found', [])
@@ -285,8 +282,7 @@ class PhishingDetectionService:
                 risk_factors.append(f"  - {sig}")
             
             explanation = f"Phishing toolkit detected: {toolkit_name}. " + \
-                         f"Found {len(signatures)} toolkit signatures. " + \
-                         "This is a mass phishing campaign using automated tools."
+                         f"Found {len(signatures)} toolkit signatures."
             
             return self._build_result(
                 url=url,
@@ -304,92 +300,54 @@ class PhishingDetectionService:
             )
         
         # ========== PRIORITY 2: AI-GENERATED CONTENT DETECTION ==========
-        ai_score = 0.0
-        ai_indicators = []
+        ai_score, ai_indicators = self._lightweight_ai_detection(text_content, html_summary)
         
-        if self.mllm_transformer:
-            # Use MLLM for AI detection
-            try:
-                metadata = {
-                    'url': url,
-                    'html': html_content,
-                    'text_content': text_content,
-                    'dom_structure': html_summary,
-                    'url_features': self.url_extractor.extract_features(url),
-                    'typosquatting': typosquat_result,
-                }
-                
-                category, ai_confidence, mllm_explanation = self.mllm_transformer.classify_threat(
-                    metadata, toolkit_signatures
-                )
-                
-                if category == ThreatCategory.AI_GENERATED_PHISHING:
-                    classification = 'ai_generated_phishing'
-                    confidence = ai_confidence
-                    risk_score = 70 + (ai_confidence * 25)
-                    risk_factors.append("AI-GENERATED PHISHING DETECTED")
-                    risk_factors.append(f"MLLM Analysis: {mllm_explanation[:100]}...")
-                    
-                    return self._build_result(
-                        url=url,
-                        classification=classification,
-                        confidence=round(confidence, 3),
-                        risk_score=round(risk_score, 2),
-                        explanation=mllm_explanation,
-                        features=self.url_extractor.extract_features(url),
-                        typosquat_result=typosquat_result,
-                        recommended_action='block',
-                        scraped=True,
-                        proof=proof,
-                        analysis_mode='online',
-                        mllm_used=True
-                    )
-                elif category == ThreatCategory.PHISHING:
-                    # Continue to regular phishing analysis with MLLM input
-                    ai_score = 0.3  # Some AI involvement detected
-                    
-            except Exception as e:
-                print(f"   [MLLM] Error during AI detection: {e}")
-        else:
-            # Lightweight AI detection without MLLM
-            ai_score, ai_indicators = self._lightweight_ai_detection(text_content, html_summary)
+        if ai_score >= 0.5:
+            classification = 'ai_generated_phishing'
+            confidence = max(0.7, ai_score)
+            risk_score = 65 + (ai_score * 30)
             
-            if ai_score >= 0.5:
-                classification = 'ai_generated_phishing'
-                confidence = max(0.7, ai_score)
-                risk_score = 65 + (ai_score * 30)
-                
-                explanation = "AI-generated content patterns detected: " + "; ".join(ai_indicators[:3])
-                
-                return self._build_result(
-                    url=url,
-                    classification=classification,
-                    confidence=round(confidence, 3),
-                    risk_score=round(risk_score, 2),
-                    explanation=explanation,
-                    features=self.url_extractor.extract_features(url),
-                    typosquat_result=typosquat_result,
-                    recommended_action='warn',
-                    scraped=True,
-                    proof=proof,
-                    analysis_mode='online',
-                    ai_indicators=ai_indicators
-                )
+            explanation = "AI-generated content patterns detected: " + "; ".join(ai_indicators[:3])
+            
+            return self._build_result(
+                url=url,
+                classification=classification,
+                confidence=round(confidence, 3),
+                risk_score=round(risk_score, 2),
+                explanation=explanation,
+                features=self.url_extractor.extract_features(url),
+                typosquat_result=typosquat_result,
+                recommended_action='warn',
+                scraped=True,
+                proof=proof,
+                analysis_mode='online',
+                ai_indicators=ai_indicators
+            )
         
-        # ========== PRIORITY 3: TRADITIONAL PHISHING ANALYSIS ==========
+        # ========== PRIORITY 3: CONTENT-VERIFIED LEGITIMATE ==========
+        # If content verification cleared the typosquatting flag, trust it
+        if typosquat_result.get('content_verified') and not typosquat_result.get('is_typosquatting'):
+            return self._build_result(
+                url=url,
+                classification='legitimate',
+                confidence=0.85,
+                risk_score=10,
+                explanation=f"Content verified: {typosquat_result.get('verification_reason', 'Page content matches legitimate business')}",
+                features=self.url_extractor.extract_features(url),
+                typosquat_result=typosquat_result,
+                recommended_action='allow',
+                scraped=True,
+                proof=proof,
+                analysis_mode='online'
+            )
+        
+        # ========== PRIORITY 4: TRADITIONAL PHISHING ANALYSIS ==========
         return self._analyze_traditional_phishing(
             url, scrape_result, typosquat_result, proof, force_mllm, ai_score
         )
     
     def _lightweight_ai_detection(self, text_content: str, html_summary: dict) -> Tuple[float, list]:
-        """
-        Lightweight AI-generated content detection without MLLM.
-        
-        Detects patterns common in AI-generated phishing:
-        - Overly formal language
-        - Generic urgency phrases
-        - Perfect grammar with impersonal tone
-        """
+        """Lightweight AI-generated content detection without MLLM."""
         if not text_content:
             return 0.0, []
         
@@ -409,7 +367,8 @@ class PhishingDetectionService:
                 score += weight
                 indicators.append(f"AI phrase: '{phrase}'")
         
-        # Urgency language (common in AI-generated phishing)
+        # Urgency language
+        import re
         urgency_patterns = [
             (r'immediately|urgent|expires|suspended|locked|verify now|act now', 0.15),
             (r'your account (?:has been|will be) (?:suspended|locked|terminated)', 0.2),
@@ -417,18 +376,13 @@ class PhishingDetectionService:
             (r'click (?:the )?(?:link|button) (?:below|here) to (?:verify|confirm)', 0.15),
         ]
         
-        import re
         for pattern, weight in urgency_patterns:
             if re.search(pattern, text_lower):
                 score += weight
-                indicators.append(f"Urgency pattern detected")
+                indicators.append("Urgency pattern detected")
         
-        # Generic greetings (AI tends to use these)
-        generic_greetings = [
-            'dear customer', 'dear user', 'dear valued', 'dear member', 
-            'dear account holder', 'dear client'
-        ]
-        
+        # Generic greetings
+        generic_greetings = ['dear customer', 'dear user', 'dear valued', 'dear member', 'dear account holder']
         for greeting in generic_greetings:
             if greeting in text_lower:
                 score += 0.15
@@ -441,7 +395,6 @@ class PhishingDetectionService:
             num_links = html_summary.get('num_links', 0)
             num_forms = html_summary.get('num_forms', 0)
             
-            # AI-generated phishing often has minimal but focused content
             if has_login and num_links < 5 and num_forms <= 2:
                 score += 0.15
                 indicators.append("Minimal focused page with login form")
@@ -451,19 +404,14 @@ class PhishingDetectionService:
     def _analyze_traditional_phishing(self, url: str, scrape_result: dict,
                                        typosquat_result: dict, proof: dict,
                                        force_mllm: bool, ai_score: float) -> dict:
-        """
-        Analyze for traditional (non-AI, non-toolkit) phishing.
-        
-        Uses content-based analysis to determine if the site is phishing.
-        """
+        """Analyze for traditional phishing."""
         html_summary = scrape_result.get('dom_structure', {})
         
-        # Calculate CONTENT-BASED risk score
         risk_score = 0
         risk_factors = []
         
-        # Factor 1: Typosquatting (brand impersonation)
-        if typosquat_result.get('is_typosquatting'):
+        # Factor 1: Typosquatting ONLY if not content-verified
+        if typosquat_result.get('is_typosquatting') and not typosquat_result.get('content_verified'):
             method = typosquat_result.get('detection_method')
             if method not in ['faulty_extension', 'invalid_extension']:
                 risk_score += 60
@@ -471,33 +419,30 @@ class PhishingDetectionService:
         
         # Factor 2: Login form with brand impersonation
         if html_summary.get('has_login_form'):
-            if typosquat_result.get('is_typosquatting'):
+            if typosquat_result.get('is_typosquatting') and not typosquat_result.get('content_verified'):
                 risk_score += 30
                 risk_factors.append("Login form on suspected impersonation site")
         
-        # Factor 3: Minimal content (phishing landing page pattern)
+        # Factor 3: Minimal content
         num_links = html_summary.get('num_links', 0)
         num_images = html_summary.get('num_images', 0)
         title = html_summary.get('title', '')
         
         if num_links < 3 and num_images < 2 and not title:
             risk_score += 20
-            risk_factors.append("Minimal page content (potential phishing landing)")
+            risk_factors.append("Minimal page content")
         
-        # Factor 4: Excessive forms/inputs
-        num_forms = html_summary.get('num_forms', 0)
-        num_inputs = html_summary.get('num_inputs', 0)
-        
-        if num_forms > 3 or num_inputs > 10:
+        # Factor 4: Excessive forms
+        if html_summary.get('num_forms', 0) > 3 or html_summary.get('num_inputs', 0) > 10:
             risk_score += 15
             risk_factors.append("Excessive form inputs")
         
-        # Factor 5: Suspicious iframes
+        # Factor 5: Iframes
         if html_summary.get('num_iframes', 0) > 2:
             risk_score += 10
             risk_factors.append("Multiple iframes")
         
-        # Factor 6: ML model prediction
+        # Factor 6: ML model
         url_features = self.url_extractor.extract_features(url)
         if self.ml_model_loaded:
             ml_prediction, ml_confidence = self._predict_with_ml(url_features)
@@ -505,14 +450,14 @@ class PhishingDetectionService:
                 risk_score += int(ml_confidence * 30)
                 risk_factors.append(f"ML model: phishing ({ml_confidence*100:.1f}%)")
         
-        # CREDIBILITY BONUS: Valid website with substantial content
+        # CREDIBILITY BONUS: Substantial content
         if num_links >= 10 and title and len(title) > 3:
             old_risk = risk_score
             risk_score = max(0, risk_score - 40)
             if old_risk > risk_score:
                 risk_factors.append("Content validation bonus: -40")
         
-        # Add AI score contribution
+        # AI score contribution
         if ai_score > 0.3:
             risk_score += int(ai_score * 20)
             risk_factors.append(f"AI content indicators: +{int(ai_score * 20)}")
@@ -520,11 +465,16 @@ class PhishingDetectionService:
         # Determine classification
         risk_score = min(100, max(0, risk_score))
         
-        if typosquat_result.get('is_typosquatting') and \
-           typosquat_result.get('detection_method') != 'subdomain_attack':
-            classification = 'phishing'
-            confidence = 0.85
-            recommended_action = 'block' if risk_score >= 50 else 'warn'
+        if typosquat_result.get('is_typosquatting') and not typosquat_result.get('content_verified'):
+            method = typosquat_result.get('detection_method')
+            if method != 'subdomain_attack':
+                classification = 'phishing'
+                confidence = 0.85
+                recommended_action = 'block' if risk_score >= 50 else 'warn'
+            else:
+                classification = 'phishing' if risk_score >= 40 else 'legitimate'
+                confidence = 0.7
+                recommended_action = 'warn' if classification == 'phishing' else 'allow'
         elif risk_score >= 70:
             classification = 'phishing'
             confidence = 0.9
@@ -544,19 +494,6 @@ class PhishingDetectionService:
         else:
             explanation = "Website content validated. No suspicious indicators."
         
-        # MLLM explanation if requested
-        if force_mllm and self.mllm_transformer:
-            try:
-                metadata = {
-                    'url': url,
-                    'url_features': url_features,
-                    'typosquatting': typosquat_result,
-                    'html_summary': html_summary
-                }
-                explanation = self.mllm_transformer.transform_to_text(metadata)
-            except Exception:
-                pass
-        
         return self._build_result(
             url=url,
             classification=classification,
@@ -573,10 +510,10 @@ class PhishingDetectionService:
         )
     
     def _analyze_unreachable_site(self, url: str, typosquat_result: dict) -> dict:
-        """Handle case where website could not be scraped."""
+        """Handle unreachable sites."""
         url_features = self.url_extractor.extract_features(url)
         
-        risk_score = 30  # Base risk for unreachable site
+        risk_score = 30
         
         if typosquat_result.get('is_typosquatting'):
             risk_score += typosquat_result.get('risk_increase', 40)
@@ -598,14 +535,14 @@ class PhishingDetectionService:
             recommended_action = 'warn'
             confidence = 0.6
         else:
-            classification = 'legitimate'
-            recommended_action = 'allow'
+            classification = 'unknown'  # NEW: Unknown for unreachable sites
+            recommended_action = 'warn'
             confidence = 0.5
         
         explanation = "Website unreachable. "
         if typosquat_result.get('is_typosquatting'):
             explanation += f"Suspicious pattern: {typosquat_result.get('detection_method')}. "
-        explanation += "Could be a taken-down phishing site."
+        explanation += "Could be a taken-down phishing site or server issue."
         
         return self._build_result(
             url=url,
@@ -622,21 +559,16 @@ class PhishingDetectionService:
         )
     
     def _analyze_static_fallback(self, url: str, force_mllm: bool = False) -> dict:
-        """
-        Static analysis when OFFLINE (no internet connection).
-        
-        Can only classify as LEGITIMATE or PHISHING.
-        Cannot detect AI-generated or toolkit-based attacks.
-        """
+        """Static analysis when OFFLINE."""
         print(f"[OFFLINE MODE] Static analysis for {url}...")
-        print("   [NOTE] Limited to LEGITIMATE/PHISHING classification")
         
         url_features = self.url_extractor.extract_features(url)
         typosquat_result = self.typosquatting_detector.analyze(url)
         
         # Check for clear typosquatting
         if typosquat_result.get('is_typosquatting'):
-            if typosquat_result.get('detection_method') in ['faulty_extension', 'invalid_extension', 'invalid_domain_structure']:
+            method = typosquat_result.get('detection_method')
+            if method in ['faulty_extension', 'invalid_extension', 'invalid_domain_structure']:
                 return self._create_typosquat_result(url, typosquat_result, offline=True)
         
         # ML Model prediction
@@ -645,10 +577,10 @@ class PhishingDetectionService:
         if self.ml_model_loaded:
             ml_prediction, ml_confidence = self._predict_with_ml(url_features)
         
-        # Calculate risk score
+        # Calculate risk
         risk_score = self._calculate_risk_score(url_features, typosquat_result, ml_prediction, ml_confidence)
         
-        # Determine classification (only LEGITIMATE or PHISHING in offline mode)
+        # Classification (only LEGITIMATE or PHISHING in offline mode)
         if typosquat_result.get('is_typosquatting'):
             classification = 'phishing'
             confidence = max(0.85, ml_confidence) if ml_prediction == 1 else 0.85
@@ -665,17 +597,15 @@ class PhishingDetectionService:
         else:
             classification = 'phishing' if risk_score >= 35 else 'legitimate'
             confidence = 0.7 if classification == 'phishing' else 0.8
-            recommended_action = 'block' if risk_score >= 70 else \
-                                 ('warn' if risk_score >= 35 else 'allow')
+            recommended_action = 'block' if risk_score >= 70 else ('warn' if risk_score >= 35 else 'allow')
         
-        # Generate explanation
         explanation = self._generate_rule_based_analysis(url_features, typosquat_result)
         explanation = f"[OFFLINE MODE] {explanation}"
         
         return self._build_result(
             url=url,
             classification=classification,
-            confidence=round(confidence * 0.9, 3),  # Reduce for offline
+            confidence=round(confidence * 0.9, 3),
             risk_score=round(risk_score, 2),
             explanation=explanation,
             features=url_features,
@@ -683,8 +613,7 @@ class PhishingDetectionService:
             recommended_action=recommended_action,
             scraped=False,
             proof=None,
-            analysis_mode='offline',
-            mllm_used=False
+            analysis_mode='offline'
         )
     
     def _build_result(self, url: str, classification: str, confidence: float,
@@ -714,7 +643,6 @@ class PhishingDetectionService:
         
         if toolkit_signatures:
             result['toolkit_signatures'] = toolkit_signatures
-        
         if ai_indicators:
             result['ai_indicators'] = ai_indicators
         
@@ -794,7 +722,7 @@ class PhishingDetectionService:
     
     def _calculate_risk_score(self, features: dict, typosquat: dict = None,
                               ml_pred: int = None, ml_conf: float = 0.5) -> float:
-        """Calculate risk score based on URL features (0-100)."""
+        """Calculate risk score."""
         score = 0
         
         if ml_pred == 1:
@@ -805,9 +733,6 @@ class PhishingDetectionService:
         
         if features.get('url_length', 0) > 75:
             score += 10
-        if features.get('path_length', 0) > 50:
-            score += 5
-        
         if features.get('is_ip_address', 0):
             score += 20
         
@@ -818,16 +743,12 @@ class PhishingDetectionService:
         if not features.get('is_https', 0):
             score += 10
         
-        entropy = features.get('entropy', 0)
-        if entropy > 4.5:
+        if features.get('entropy', 0) > 4.5:
             score += 10
         
-        domain_entropy = features.get('domain_entropy', 0)
-        is_random = features.get('is_random_domain', 0)
-        
-        if is_random:
+        if features.get('is_random_domain', 0):
             score += 45
-        if domain_entropy > 3.5:
+        if features.get('domain_entropy', 0) > 3.5:
             score += 15
         
         if features.get('num_hyphens', 0) > 3:
@@ -840,24 +761,21 @@ class PhishingDetectionService:
         return min(100, score)
     
     def _generate_rule_based_analysis(self, features: dict, typosquat: dict = None) -> str:
-        """Fallback rule-based analysis when MLLM is not available."""
+        """Generate rule-based analysis."""
         issues = []
         
         if typosquat and typosquat.get('is_typosquatting'):
             method = typosquat.get('detection_method', 'unknown')
-            if method == 'faulty_extension':
-                details = typosquat.get('details', ["Faulty extension detected"])[0]
-                issues.append(details)
-            elif method in ['invalid_domain_structure', 'invalid_extension']:
+            if method in ['faulty_extension', 'invalid_domain_structure', 'invalid_extension']:
                 details = typosquat.get('details', ["Invalid domain detected"])[0]
                 issues.append(details)
             else:
                 brand = typosquat.get('impersonated_brand', 'unknown')
-                issues.append(f"BRAND IMPERSONATION: Attempting to mimic '{brand}'")
+                issues.append(f"Brand impersonation: {brand}")
         
         if features.get('is_random_domain', 0):
             if features.get('is_ip_address'):
-                issues.append("URL uses an IP address instead of domain name")
+                issues.append("Uses IP address instead of domain")
             else:
                 issues.append("High entropy domain name")
         
