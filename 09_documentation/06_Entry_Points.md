@@ -65,42 +65,47 @@ async def main():
 
 ### Key Features
 
-1. **Internet-Aware**: Shows [ONLINE] or [OFFLINE] status
-2. **Color-Coded Output**: Red for phishing, green for safe
-3. **Detailed Analysis**: Shows risk score, confidence, explanation
-4. **Batch Processing**: Scan multiple URLs from file
+1. **4-Category Classification**:
+   - **LEGITIMATE** (Green): Safe websites
+   - **PHISHING** (Red): Malicious sites
+   - **AI_GENERATED** (Orange): AI-crafted phishing
+   - **PHISHING_KIT** (Dark Red): Known toolkits (Gophish, Evilginx2, etc.)
+2. **Internet-Aware**: Shows [ONLINE] or [OFFLINE] status
+3. **Toolkit Fingerprinting**: Identifies if a specific phishing framework is being used
+4. **Detailed Analysis**: Shows risk score, confidence, and actionable explanation
+5. **Batch Processing**: Scan multiple URLs from a text file
 
 ### Example Output
 
 ```
-╔═══════════════════════════════════════════════════════════════╗
-║   🔒 PHISHING URL DETECTOR                                    ║
-║   Mode: 🌐 ONLINE - Full Analysis                             ║
-╚═══════════════════════════════════════════════════════════════╝
++===================================================================+
+|                                                                   |
+|   PHISHING URL DETECTOR                                           |
+|   Multimodal LLM-based Phishing Detection System                  |
+|                                                                   |
+|   Classification Categories:                                      |
+|    [92m[LEGIT] [96m Safe      [91m[PHISH] [96m Danger      [38;5;208m[AI] [96m AI-Gen      [38;5;124m[KIT] [96m Toolkit   |
+|                                                                   |
++-------------------------------------------------------------------+
+|   [NET] Mode:  [92m           ONLINE - Full Analysis             [96m|
++===================================================================+
+
+Analyzing https://paypa1.com...
+[ONLINE MODE] Analyzing https://paypa1.com...
 
 =================================================================
 URL: https://paypa1.com
 Analysis Mode: [ONLINE]
 =================================================================
 
-⚠️  PHISHING DETECTED
+ [38;5;124m [1m(!) PHISHING_KIT DETECTED [0m
 
-Confidence:  95.0%
-Risk Score:  85/100
+Confidence:  92.0%
+Risk Score:  95/100
 Action:      BLOCK
 
 Analysis:
-Analysis based on scraped content: Brand impersonation detected: paypal
-
-[INFO] Successfully scraped webpage content.
-   Title: PayPal Login
-   Size: 45678 bytes
-   Links: 15
-
-[!] BRAND IMPERSONATION DETECTED:
-   Impersonated Brand: PAYPAL
-   Method: homoglyph_substitution
-   Similarity: 95.0%
+Toolkit detected: Gophish. Signatures found: ?rid= tracking parameter.
 ```
 
 ---
@@ -351,14 +356,14 @@ DO NOT click any links in this email.
 
 ## Comparison of Entry Points
 
-| Feature | detect.py | gui.py | scan_email.py | imap_scanner.py |
-|---------|-----------|--------|---------------|-----------------|
-| Interface | CLI | GUI | CLI | CLI |
-| Input | URL | URL | .eml file | IMAP inbox |
-| Real-time | No | No | No | Yes |
-| Batch | Yes | No | Yes | Yes |
-| Offline Mode | Yes | Yes | Yes | Yes |
-| Connectivity Check | Yes | Yes | Yes | Periodic |
+| Feature | detect.py | gui.py | Thunderbird Add-on | imap_scanner.py |
+|---------|-----------|--------|--------------------|-----------------|
+| Interface | CLI | GUI | Mail Client (UI) | CLI |
+| Input | URL | URL | Email Content | IMAP inbox |
+| Real-time | No | No | Yes (On Receive) | Yes (Polling) |
+| Batch | Yes | No | No | Yes |
+| Offline Mode | Yes | Yes | N/A (API Dep.) | Yes |
+| Banner Injection| No | No | Yes | No |
 
 ---
 

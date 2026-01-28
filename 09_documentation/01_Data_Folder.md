@@ -20,6 +20,9 @@ The `01_data/` folder contains all datasets used for training and evaluating the
 │   ├── mllm_features/      # MLLM-generated text descriptions
 │   └── processing_results.csv  # Scraping success/failure log
 │
+├── external/               # Third-party reference data
+│   └── tld_list.json       # Database of 1,592 valid TLDs (from IANA)
+│
 └── splits/                 # Train/validation/test splits
     ├── train.csv           # Training data (~80%)
     ├── val.csv             # Validation data (~10%)
@@ -38,34 +41,23 @@ This folder contains the original datasets **as downloaded** from phishing datab
 - **Purpose**: Main training dataset
 - **Size**: ~3.2 MB, 46,000+ URLs
 - **Format**: CSV with columns `url`, `label`
-- **Labels**: 
+- **Labels (Standard)**: 
   - `1` = Phishing (malicious)
   - `0` = Legitimate (safe)
 - **Source**: Combination of PhishTank and OpenPhish
 
-**Example content:**
-```csv
-url,label
-https://paypa1-secure-login.com/verify,1
-https://googIe.com.malicious.net,1
-https://amaz0n-deals.xyz,1
-```
+### 2. `external/` - Reference Databases
 
-#### `phishtank.csv`
-- **Purpose**: Raw PhishTank database export
-- **Size**: ~9.3 MB
-- **Source**: [PhishTank](https://phishtank.org) - Community-verified phishing database
-- **Why it's used**: PhishTank provides human-verified phishing URLs, making it highly reliable
+#### `tld_list.json`
+- **Purpose**: Comprehensive database of all valid Top-Level Domains.
+- **Count**: 1,592 valid TLDs (e.g., .com, .bank, .google, .in).
+- **Why it's used**: 
+  - Prevents false positives in typosquatting detection (verifies if an extension is actually valid).
+  - Helps calculate "actual" subdomain depth by identifying multi-part TLDs (e.g., `.co.uk`, `.bank.in`).
+  - Distinguishes between brand impersonation and legitimate domain registration.
 
-#### `openphish.txt`
-- **Purpose**: OpenPhish phishing feed (plain text list)
-- **Size**: ~18 KB, 300+ URLs
-- **Source**: [OpenPhish](https://openphish.com) - Automated phishing feed
-- **Format**: One URL per line
+### 3. `processed/` - Preprocessed Data
 
----
-
-### 2. `processed/` - Preprocessed Data
 
 This folder contains data that has been **scraped and processed** from the raw URLs. This is the multimodal data used for advanced detection.
 

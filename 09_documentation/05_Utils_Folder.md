@@ -8,11 +8,12 @@ The `05_utils/` folder contains utility modules used throughout the project. The
 
 ```
 05_utils/
-├── feature_extraction.py       # URL feature extractor
-├── typosquatting_detector.py   # Brand impersonation detection
-├── web_scraper.py              # Playwright-based web scraper
-├── connectivity.py             # Internet connectivity checker (NEW)
-├── mllm_transformer.py         # Qwen2.5 LLM integration
+├── url_extractor.py             # Shared URL extraction (Regex-based)
+├── feature_extraction.py       # ML feature extraction (Handcrafted)
+├── typosquatting_detector.py   # TLD-aware brand impersonation
+├── web_scraper.py              # Toolkit-fingerprinting scraper
+├── connectivity.py             # Internet connectivity checker
+├── mllm_transformer.py         # AI detection & 4-way classification
 ├── text_feature_generator.py   # Batch MLLM processing
 ├── data_preparation.py         # Dataset preprocessing
 └── common_words.py             # Dictionary for gibberish detection
@@ -20,261 +21,67 @@ The `05_utils/` folder contains utility modules used throughout the project. The
 
 ---
 
-## 1. `feature_extraction.py` - URL Feature Extractor
+## 1. `url_extractor.py` - Shared Extraction Utility
 
-Extracts 17+ features from URLs for ML classification.
-
-### Class: `URLFeatureExtractor`
+A robust, shared utility used by the Thunderbird add-on backend and the IMAP scanner to extract URLs from plain text and HTML emails.
 
 ```python
-class URLFeatureExtractor:
-    """Extract handcrafted features from URLs"""
-    
-    @staticmethod
-    def extract_features(url):
-        features = {}
-        
-        # Parse URL
-        parsed = urlparse(url)
-        extracted = tldextract.extract(url)
-        
-        # Length features
-        features['url_length'] = len(url)
-        features['domain_length'] = len(extracted.domain)
-        features['path_length'] = len(parsed.path)
-        
-        # Character counts
-        features['num_dots'] = url.count('.')
-        features['num_hyphens'] = url.count('-')
-        # ... more ...
-        
-        return features
-```
-
-### Features Extracted
-
-| Feature | Description | Why It Matters |
-|---------|-------------|----------------|
-| `url_length` | Total URL length | Phishing URLs often very long |
-| `domain_length` | Domain name length | Very short = suspicious |
-| `path_length` | URL path length | Long paths = obfuscation |
-| `num_dots` | Count of `.` | Many dots = subdomains |
-| `num_hyphens` | Count of `-` | Many hyphens = suspicious |
-| `is_https` | 1 if HTTPS, 0 if HTTP | No HTTPS = less secure |
-| `is_ip_address` | 1 if IP used as domain | Using IP = hiding identity |
-| `entropy` | Shannon entropy | High = random/generated |
-| `is_random_domain` | 1 if gibberish domain | Random letters = DGA malware |
-| `vowel_ratio` | Vowels / total letters | Unnatural ratio = generated |
-
-### Vowel/Consonant Check (Lines 66-124)
-
-This is the **static heuristic** that was causing false positives:
-
-```python
-# Calculate consonant clusters
-consonants = "bcdfghjklmnpqrstvwxyz"
-vowels_list = "aeiou"
-
-for char in domain_text:
-    if char in consonants:
-        current_consecutive_consonants += 1
-        max_consecutive_consonants = max(...)
-    elif char in vowels_list:
-        current_consecutive_vowels += 1
-        max_consecutive_vowels = max(...)
-
-# Flag as random if:
-if max_consecutive_consonants >= 5:  # e.g., 'sqbqq'
-    is_random = 1
-elif max_consecutive_vowels >= 3:    # e.g., 'aeiou'
-    is_random = 1
-elif vowel_ratio < 0.15:             # Very few vowels
-    is_random = 1
-```
-
-**The problem:** This flags legitimate but unusual domains as phishing.
-
-**The solution:** In ONLINE mode, we ignore `is_random_domain` when we can validate the actual website content.
-
----
-
-## 2. `typosquatting_detector.py` - Brand Impersonation Detection
-
-Detects URLs that try to impersonate known brands.
-
-### Detection Methods
-
-1. **Faulty Extension** - `.pom` instead of `.com`
-2. **Brand in Domain** - `paypal-secure.xyz`
-3. **Levenshtein Similarity** - `paypall.com` (extra 'l')
-4. **Homoglyph Substitution** - `paypa1.com` (1 instead of l)
-5. **Subdomain Attack** - `paypal.malicious.com`
-
-### Protected Brands
-
-```python
-PROTECTED_BRANDS = {
-    # Financial
-    'paypal': ['paypal.com'],
-    'hdfc': ['hdfcbank.com', 'hdfc.com'],
-    'icici': ['icicibank.com'],
-    
-    # Tech
-    'google': ['google.com', 'gmail.com'],
-    'microsoft': ['microsoft.com', 'outlook.com'],
-    'amazon': ['amazon.com', 'amazon.in'],
-    
-    # E-commerce India
-    'flipkart': ['flipkart.com'],
-    'blinkit': ['blinkit.com'],
-    'swiggy': ['swiggy.com'],
-    # ... 50+ brands
-}
-```
-
-### Usage
-
-```python
-detector = TyposquattingDetector()
-result = detector.analyze("https://paypa1.com")
-
-print(result)
-# {
-#   'is_typosquatting': True,
-#   'impersonated_brand': 'paypal',
-#   'detection_method': 'homoglyph_substitution',
-#   'similarity_score': 0.95,
-#   'risk_increase': 60
-# }
+def extract_urls(text: str) -> List[str]:
+    # Uses advanced regex to identify URLs while 
+    # filtering out common noise and tracking pixels.
 ```
 
 ---
 
-## 3. `web_scraper.py` - Playwright Web Scraper
+## 2. `typosquatting_detector.py` - TLD-Aware Detection
 
-Scrapes websites to capture multimodal data (screenshot, HTML, DOM).
+**MAJOR UPDATE**: Now integrates with a database of 1,592 valid TLDs.
 
-### Class: `WebScraper`
-
-```python
-class WebScraper:
-    """Scrapes screenshots, HTML, and DOM structure using Playwright"""
-    
-    def __init__(self, headless=True, timeout=30000):
-        self.timeout = timeout
-        self.headless = headless
-    
-    async def scrape_url(self, url):
-        # Launch browser
-        browser = await playwright.chromium.launch(headless=True)
-        
-        # Navigate to URL
-        await page.goto(url, timeout=30000)
-        
-        # Capture screenshot
-        screenshot_bytes = await page.screenshot()
-        
-        # Get HTML
-        html = await page.content()
-        
-        # Extract DOM features
-        dom_structure = self._extract_dom_features(html)
-        
-        return {
-            'screenshot': Image.open(io.BytesIO(screenshot_bytes)),
-            'html': html,
-            'dom_structure': dom_structure,
-            'success': True
-        }
-```
-
-### DOM Features Extracted
-
-```python
-def _extract_dom_features(self, soup):
-    return {
-        'num_forms': len(soup.find_all('form')),
-        'num_inputs': len(soup.find_all('input')),
-        'num_links': len(soup.find_all('a')),
-        'num_images': len(soup.find_all('img')),
-        'num_scripts': len(soup.find_all('script')),
-        'num_iframes': len(soup.find_all('iframe')),
-        'has_login_form': bool(soup.find('input', {'type': 'password'})),
-        'title': soup.title.string if soup.title else "",
-    }
-```
+### Improvements:
+- **TLD Verification**: No longer flags `.bank`, `.google`, or `.apple` as suspicious extensions.
+- **Content Verification**: In ONLINE mode, the detector can verify if a site's content matches the impersonated brand. If `kotaksalesianschool.com` is actually a school and not a bank, it is marked as LEGITIMATE.
+- **Subdomain Analysis**: Correctly identifies subdomains by recognizing multi-part TLDs like `.co.uk` and `.bank.in`.
 
 ---
 
-## 4. `connectivity.py` - Internet Connectivity Checker (NEW)
+## 3. `web_scraper.py` - Toolkit Fingerprinting
 
-Checks if internet is available for web scraping.
+**NEW**: Now includes `ToolkitSignatureDetector` to identify phishing frameworks.
 
-### Functions
+### Detected Toolkits:
+| Toolkit | Signatures |
+|---------|------------|
+| **Gophish** | `?rid=` parameter, `X-Gophish-Contact` header |
+| **Evilginx2** | Proxy redirect patterns, session cookie structures |
+| **HiddenEye** | Specific CSS classes, `pish.js` patterns |
+| **King Phisher** | Campaign IDs, tracking headers |
+| **SocialFish** | Unique form field combinations |
 
-```python
-def check_internet_connection(timeout=2.0) -> bool:
-    """
-    Check if internet is available by pinging DNS servers.
-    
-    Returns True if online, False if offline.
-    """
-    try:
-        socket.create_connection(("1.1.1.1", 53), timeout=timeout)
-        return True
-    except OSError:
-        return False
-```
-
-### ConnectivityMonitor Class
-
-```python
-class ConnectivityMonitor:
-    """Monitors connectivity with caching."""
-    
-    def __init__(self, check_interval=30):
-        self.check_interval = check_interval
-        self._is_online = check_internet_connection()
-    
-    @property
-    def is_online(self) -> bool:
-        """Check if online, refresh if needed."""
-        if time_since_last_check > self.check_interval:
-            self._is_online = check_internet_connection()
-        return self._is_online
-```
+### Logic:
+- Analyzes HTTP headers, cookies, and DOM patterns.
+- Requires multiple indicators for high-confidence toolkit detection to avoid false positives on legitimate complex domains.
 
 ---
 
-## 5. `mllm_transformer.py` - LLM Integration
+## 5. `mllm_transformer.py` - AI & 4-Way Classification
 
-Uses Qwen2.5-3B to generate human-readable explanations.
+**NEW**: Now includes logic for advanced classification beyond binary phishing/legitimate.
 
-```python
-class MLLMFeatureTransformer:
-    def __init__(self, model_name="Qwen/Qwen2.5-3B-Instruct"):
-        # Load with 4-bit quantization for 4GB VRAM
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=quantization_config,
-            device_map="auto"
-        )
-    
-    def transform_to_text(self, metadata):
-        prompt = f"""
-        Analyze this website for phishing indicators:
-        URL: {metadata['url']}
-        Features: {metadata['url_features']}
-        DOM: {metadata.get('html_summary', 'N/A')}
-        """
-        
-        response = self.model.generate(prompt)
-        return response
-```
+### Class: `MLLMFeatureTransformer`
+
+This module uses semantic analysis to categorize threats:
+
+1.  **AI Detection**: Identifies linguistic markers common in AI-generated phishing content (e.g., overly formal tone, repetitive structures, specific GPT-like phrasing).
+2.  **4-Way Logic**:
+    - **LEGITIMATE**: High content credibility, verified brand match.
+    - **PHISHING**: Brand impersonation or high static risk without toolkit signatures.
+    - **AI_GENERATED_PHISHING**: Phishing content identified as LLM-generated.
+    - **PHISHING_KIT**: Site identified as using a known framework (Gophish, etc.).
 
 ---
 
 ## 6. `common_words.py` - Dictionary
+
 
 Contains common English words to distinguish real words from gibberish.
 

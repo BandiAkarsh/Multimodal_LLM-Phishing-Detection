@@ -16,16 +16,46 @@ import os
 import time
 import asyncio
 import re
+import json
 from urllib.parse import urlparse, parse_qs
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
 from PIL import Image
 import io
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Load TLD list for proper domain parsing
+_TLD_SET: Optional[Set[str]] = None
+
+def _load_tld_set() -> Set[str]:
+    """Load valid TLDs from the JSON database."""
+    global _TLD_SET
+    if _TLD_SET is not None:
+        return _TLD_SET
+    
+    tld_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        '01_data', 'external', 'tld_list.json'
+    )
+    
+    try:
+        with open(tld_file, 'r', encoding='utf-8') as f:
+            tld_data = json.load(f)
+            _TLD_SET = set(tld_data.keys())
+            logger.info(f"Loaded {len(_TLD_SET)} valid TLDs")
+    except Exception as e:
+        logger.warning(f"Failed to load TLD list: {e}, using fallback")
+        # Fallback with common TLDs
+        _TLD_SET = {
+            'com', 'org', 'net', 'edu', 'gov', 'mil', 'co', 'io',
+            'bank', 'in', 'uk', 'us', 'de', 'fr', 'jp', 'cn', 'au',
+        }
+    
+    return _TLD_SET
 
 
 class ToolkitSignatureDetector:
@@ -344,31 +374,110 @@ class ToolkitSignatureDetector:
     
     @classmethod
     def _check_evilginx(cls, url: str, html: str) -> tuple:
-        """Check for Evilginx2 signatures."""
+        """
+        Check for Evilginx2 signatures.
+        
+        IMPORTANT: This method now properly handles multi-part TLDs to avoid
+        false positives on legitimate domains like netbanking.kotak.bank.in
+        where .bank is a legitimate gTLD and .in is India's ccTLD.
+        """
         score = 0.0
         signatures = []
         
         parsed = urlparse(url)
+        netloc = parsed.netloc.lower()
         
-        # Check for deeply nested subdomains (Evilginx pattern)
-        subdomain_count = parsed.netloc.count('.')
-        if subdomain_count >= 3:
-            score += 0.2
-            signatures.append(f"Deeply nested subdomain ({subdomain_count} levels)")
+        # Remove port if present
+        if ':' in netloc:
+            netloc = netloc.split(':')[0]
         
-        # Check redirect patterns
+        # Get actual subdomain depth by accounting for multi-part TLDs
+        actual_subdomain_depth = cls._get_actual_subdomain_depth(netloc)
+        
+        # Only flag deeply nested subdomains if they're truly suspicious
+        # (more than 2 actual subdomains, not counting TLD parts)
+        if actual_subdomain_depth >= 3:
+            # Additional check: legitimate domains rarely have 3+ subdomains
+            # unless they're using recognized patterns
+            score += 0.15
+            signatures.append(f"Deeply nested subdomain ({actual_subdomain_depth} levels)")
+        
+        # Check redirect patterns (stronger indicator)
+        redirect_matches = 0
         for pattern in cls.EVILGINX_SIGNATURES['redirect_patterns']:
             if re.search(pattern, url, re.IGNORECASE):
-                score += 0.3
+                redirect_matches += 1
+                score += 0.25
                 signatures.append(f"Redirect pattern: {pattern}")
         
-        # Check URL patterns
+        # Check URL patterns - but only add score if combined with other indicators
         for pattern in cls.EVILGINX_SIGNATURES['url_patterns']:
-            if re.search(pattern, parsed.netloc, re.IGNORECASE):
-                score += 0.2
-                signatures.append("Evilginx URL pattern")
+            if re.search(pattern, netloc, re.IGNORECASE):
+                # Only count if we have other indicators too
+                if redirect_matches > 0 or actual_subdomain_depth >= 3:
+                    score += 0.15
+                    signatures.append("Evilginx URL pattern")
+        
+        # CRITICAL: Require at least 2 different indicators to flag as Evilginx
+        # This prevents false positives on legitimate multi-part TLD domains
+        if len(signatures) < 2:
+            # Not enough evidence - reset score to prevent false positive
+            score = min(score, 0.25)
         
         return score, signatures
+    
+    @classmethod
+    def _get_actual_subdomain_depth(cls, netloc: str) -> int:
+        """
+        Calculate actual subdomain depth accounting for multi-part TLDs.
+        
+        Examples:
+        - google.com -> 0 subdomains
+        - www.google.com -> 1 subdomain  
+        - mail.google.com -> 1 subdomain
+        - netbanking.kotak.bank.in -> 1 subdomain (bank.in is a valid TLD combo)
+        - evil.login.secure.paypal.com.attacker.xyz -> 5 subdomains (suspicious)
+        
+        Returns:
+            Number of actual subdomain levels (excluding TLD parts)
+        """
+        tld_set = _load_tld_set()
+        parts = netloc.split('.')
+        
+        if len(parts) <= 1:
+            return 0
+        
+        # Check for multi-part TLDs from the right
+        # e.g., .co.uk, .bank.in, .com.au
+        tld_parts_count = 0
+        
+        # First check: Is the rightmost part a valid ccTLD or gTLD?
+        if parts[-1] in tld_set:
+            tld_parts_count = 1
+            
+            # Check if second-to-last is also a valid TLD (multi-part TLD)
+            # e.g., .co.uk where both 'co' and 'uk' are valid TLDs
+            # or .bank.in where 'bank' is a gTLD and 'in' is a ccTLD
+            if len(parts) >= 2 and parts[-2] in tld_set:
+                tld_parts_count = 2
+                
+                # Check for rare 3-part TLDs (uncommon but possible)
+                if len(parts) >= 3 and parts[-3] in tld_set:
+                    # Only count as 3-part if it's a known pattern
+                    # Most legitimate 3-part are specific like .sch.uk
+                    pass  # Keep at 2 for safety
+        
+        # Special case: Second-level domains under ccTLDs
+        # e.g., .co.uk, .com.au, .ac.in, .gov.in, .nic.in
+        COMMON_SLD_PATTERNS = {'co', 'com', 'org', 'net', 'gov', 'ac', 'edu', 'nic', 'res'}
+        if len(parts) >= 2 and parts[-2].lower() in COMMON_SLD_PATTERNS:
+            tld_parts_count = max(tld_parts_count, 2)
+        
+        # Calculate actual subdomains = total parts - TLD parts - domain name (1)
+        # Minimum subdomain count is 0
+        actual_subdomains = max(0, len(parts) - tld_parts_count - 1)
+        
+        return actual_subdomains
     
     @classmethod
     def _check_generic_kit(cls, url: str, html: str, soup: BeautifulSoup) -> tuple:
