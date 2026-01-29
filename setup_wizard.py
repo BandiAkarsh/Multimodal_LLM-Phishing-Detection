@@ -19,6 +19,7 @@ else:
 
 PROJECT_ROOT = CURRENT_DIR
 CONFIG_FILE = os.path.join(PROJECT_ROOT, "email_config.json")
+CREDS_FILE = os.path.join(PROJECT_ROOT, "credentials.json")
 REGISTRY_FILE = os.path.expanduser("~/.phishing_guard_registry.json")
 
 def print_banner():
@@ -32,7 +33,7 @@ def print_banner():
   ██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║╚██████╔╝
   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
                  [Phishing Guard Team]
-                 VERSION: {SUITE_TYPE.upper()}
+                 VERSION: {SUITE_TYPE.upper()} (Pure OAuth2)
 \033[0m""")
 
 def run_step(number, title, description):
@@ -42,6 +43,13 @@ def run_step(number, title, description):
 def check_system_readiness():
     run_step(0, "System Readiness Check", "Verifying hardware and installing necessary components.")
     
+    # Check for credentials.json
+    if not os.path.exists(CREDS_FILE):
+        print(f"\n\033[91m❌ ERROR: credentials.json not found in {PROJECT_ROOT}\033[0m")
+        print("To use 'Sign in with Google', you must first setup your Google Cloud Project.")
+        print("Please read 'CREDENTIALS_GUIDE.md' for instructions.")
+        sys.exit(1)
+
     # 1. GPU Check for AI version
     if SUITE_TYPE == "advanced_ai":
         try:
@@ -49,20 +57,18 @@ def check_system_readiness():
             if not torch.cuda.is_available():
                 print("\n\033[93m⚠️  WARNING: No NVIDIA GPU detected.\033[0m")
                 print("The 'Advanced AI' version requires a GPU for acceptable performance.")
-                print("Consider using the 'Lightweight' version in the other folder.")
                 if input("\nContinue anyway? (y/n): ").lower() != 'y': sys.exit(0)
-        except:
-            pass
+        except: pass
 
     # 2. Install Dependencies
     print("\n\033[94mChecking Python dependencies...\033[0m")
     req_file = os.path.join(PROJECT_ROOT, "requirements.txt")
     if os.path.exists(req_file):
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "-r", req_file], check=True)
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", req_file, "google-auth-oauthlib", "google-auth-httplib2"], check=True)
             print("\033[92m✅ Dependencies verified.\033[0m")
         except:
-            print("\033[91m❌ Failed to install dependencies. Please run 'pip install -r requirements.txt' manually.\033[0m")
+            print("\033[91m❌ Failed to install dependencies.\033[0m")
 
     # 3. Playwright Installation
     print("\n\033[94mChecking Web Scraper (Playwright)...\033[0m")
@@ -82,53 +88,51 @@ def check_existing_account():
                 if email:
                     print(f"\n\033[91m\033[1m⚠️  WARNING: ACCOUNT ALREADY PROTECTED\033[0m")
                     print(f"\033[93mThe account '{email}' is already being guarded by the '{suite}' version.\033[0m")
-                    print("Adding multiple guards to the same account is not recommended.")
-                    
-                    choice = input("\nDo you want to (1) Replace it or (2) Stop this setup? (1/2): ")
-                    if choice != "1":
-                        print("\nSetup stopped to prevent protection overlap.")
+                    if input("\nDo you want to (1) Replace it or (2) Stop setup? (1/2): ") != "1":
                         sys.exit(0)
         except: pass
 
 def setup_email():
     check_existing_account()
-    run_step(1, "Link Your Email Account", "Connects Phishing Guard to your inbox for real-time monitoring.")
+    run_step(1, "Link Your Google Account", "Securely connect Phishing Guard using standard Google Login.")
     
-    email_addr = input("\n\033[1mEnter your Email Address:\033[0m ").strip()
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    SCOPES = ['https://mail.google.com/']
     
-    if "gmail.com" in email_addr.lower():
-        setup_gmail_guided(email_addr)
-    else:
-        setup_standard_imap(email_addr)
-    
-    # Update registry
     try:
-        with open(REGISTRY_FILE, 'w') as f:
-            json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
-    except: pass
-
-def setup_gmail_guided(email_addr):
-    print("\n\033[94m[Gmail Guided Setup]\033[0m")
-    print("1. Browser opens to Google Security page.")
-    print("2. Create an 'App Password' named 'Phishing Guard'.")
-    print("3. Paste the 16-character code here.")
-    
-    if input("\nOpen browser now? (y/n): ").lower() != 'n':
-        webbrowser.open("https://myaccount.google.com/apppasswords")
-    
-    password = getpass.getpass("\n\033[1mPaste Security Key here:\033[0m ").strip().replace(" ", "")
-    _save_config({"auth_type": "standard", "server": "imap.gmail.com", "email": email_addr, "password": password})
-
-def setup_standard_imap(email_addr):
-    print("\n\033[96m[Custom IMAP Setup]\033[0m")
-    server = input("IMAP Server (e.g. imap.mail.yahoo.com): ").strip()
-    password = getpass.getpass("Password: ").strip()
-    _save_config({"auth_type": "standard", "server": server, "email": email_addr, "password": password})
-
-def _save_config(config):
-    with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
-    os.chmod(CONFIG_FILE, 0o600)
-    print(f"\n\033[92m✅ Success! Account linked.\033[0m")
+        flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
+        creds = flow.run_local_server(
+            port=0, 
+            authorization_prompt_message='\033[94mPlease log in through the browser window that just opened...\033[0m',
+            success_message='\033[92m✅ Success! Your account is now linked securely.\033[0m'
+        )
+        
+        email_addr = input("\n\033[1mConfirm your Gmail Address:\033[0m ").strip()
+        
+        config = {
+            "auth_type": "oauth2",
+            "email": email_addr,
+            "refresh_token": creds.refresh_token,
+            "token_uri": creds.token_uri,
+            "client_id": creds.client_id,
+            "client_secret": creds.client_secret,
+            "server": "imap.gmail.com"
+        }
+        
+        with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
+        os.chmod(CONFIG_FILE, 0o600)
+        
+        # Update registry
+        try:
+            with open(REGISTRY_FILE, 'w') as f:
+                json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
+        except: pass
+        
+        print(f"\n\033[92m✅ Google Account '{email_addr}' linked successfully!\033[0m")
+        
+    except Exception as e:
+        print(f"\n\033[91m❌ OAuth Flow Failed: {e}\033[0m")
+        sys.exit(1)
 
 def install_services():
     run_step(2, "Activate 24/7 Protection", "Installs Phishing Guard as a silent background service.")
@@ -139,7 +143,6 @@ def install_services():
     api_svc = f"phishing-api-{SUITE_TYPE}.service"
     mon_svc = f"phishing-monitor-{SUITE_TYPE}.service"
 
-    # API Service Template
     api_content = f"""[Unit]
 Description=Phishing Guard API ({SUITE_TYPE})
 After=network.target
@@ -151,7 +154,6 @@ User={user}
 [Install]
 WantedBy=multi-user.target"""
 
-    # Monitor Service Template
     mon_content = f"""[Unit]
 Description=Phishing Guard Email Watchdog ({SUITE_TYPE})
 After=network.target {api_svc}
@@ -180,7 +182,7 @@ def main():
         check_system_readiness()
         setup_email()
         install_services()
-        print("\n\033[96m\033[1mOnboarding Complete. Goodbye!\033[0m")
+        print("\n\033[96m\033[1mSetup Complete! Your inbox is now being guarded.\033[0m")
     except KeyboardInterrupt: print("\n\n\033[93mCancelled.\033[0m")
 
 if __name__ == "__main__":

@@ -107,28 +107,37 @@ def parse_email_content(msg):
 # --- MONITOR MODE LOGIC ---
 
 def connect_imap(config):
-    """Connect to IMAP server with support for Standard and OAuth2."""
+    """Connect to Gmail IMAP server using secure XOAUTH2 exclusively."""
     try:
         imap_server = config.get("server", "imap.gmail.com")
         mail = imaplib.IMAP4_SSL(imap_server)
         
-        if config.get("auth_type") == "oauth2":
-            import google.oauth2.credentials
-            import google.auth.transport.requests
-            creds = google.oauth2.credentials.Credentials(
-                None, refresh_token=config['refresh_token'],
-                client_id=config['client_id'], client_secret=config['client_secret'],
-                token_uri=config['token_uri']
-            )
-            creds.refresh(google.auth.transport.requests.Request())
-            auth_string = f"user={config['email']}\1auth=Bearer {creds.token}\1\1"
-            mail.authenticate('XOAUTH2', lambda x: auth_string)
-        else:
-            mail.login(config['email'], config['password'])
+        # Handle Google OAuth2 (XOAUTH2)
+        import google.oauth2.credentials
+        import google.auth.transport.requests
+        
+        creds = google.oauth2.credentials.Credentials(
+            None,
+            refresh_token=config['refresh_token'],
+            client_id=config['client_id'],
+            client_secret=config['client_secret'],
+            token_uri=config['token_uri']
+        )
+        
+        # Refresh token to get access token
+        request = google.auth.transport.requests.Request()
+        creds.refresh(request)
+        
+        # Authenticate using XOAUTH2
+        auth_string = f"user={config['email']}\1auth=Bearer {creds.token}\1\1"
+        mail.authenticate('XOAUTH2', lambda x: auth_string)
+            
         return mail
     except Exception as e:
-        print(f"{Colors.RED}Connection failed: {e}{Colors.END}")
+        print(f"{Colors.RED}Authentication failed: {e}{Colors.END}")
+        print(f"{Colors.YELLOW}Please re-run setup_wizard.py to refresh your login.{Colors.END}")
         return None
+
 
 async def monitor_inbox(service, force_offline=False, daemon_mode=False):
     """Monitor IMAP inbox for new emails."""
