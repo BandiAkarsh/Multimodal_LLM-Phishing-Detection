@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Phishing Guard: Professional Onboarding Suite
-Version: 4.0 (Unified CLI & GUI with System Auth Integration)
+Version: 5.0 (Unified Dashboard, GUI & CLI)
 Branding: Phishing Guard Team
 """
 
@@ -37,6 +37,16 @@ REGISTRY_FILE = os.path.expanduser("~/.phishing_guard_registry.json")
 class SetupEngine:
     """Handles the heavy lifting of verification and installation."""
     
+    @staticmethod
+    def get_current_registry():
+        """Fetch the currently protected account across all suites."""
+        if os.path.exists(REGISTRY_FILE):
+            try:
+                with open(REGISTRY_FILE, 'r') as f:
+                    return json.load(f)
+            except: pass
+        return None
+
     @staticmethod
     def verify_imap(email_addr, password, server="imap.gmail.com"):
         """Live verification of credentials."""
@@ -115,16 +125,25 @@ echo "DONE"
 class ModernWizardGUI:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Phishing Guard Onboarding")
+        self.root.title("Phishing Guard Suite")
         self.root.geometry("500x650")
         self.root.configure(bg="#1e1e1e")
+        
+        # Window placement: center on screen
+        self.root.eval('tk::PlaceWindow . center')
+        
         self.style = ttk.Style()
         self.style.theme_use('clam')
         
+        # Keybindings
+        self.root.bind("<Escape>", lambda e: self.root.destroy())
+        
         # Custom Styling
         self.style.configure("TLabel", background="#1e1e1e", foreground="#ffffff", font=("Helvetica", 10))
-        self.style.configure("Header.TLabel", font=("Helvetica", 18, "bold"), foreground="#00ffcc")
+        self.style.configure("Header.TLabel", font=("Helvetica", 20, "bold"), foreground="#00ffcc")
+        self.style.configure("Badge.TLabel", font=("Helvetica", 9, "bold"), background="#2d2d2d", foreground="#00ffcc", padding=5)
         self.style.configure("TButton", font=("Helvetica", 10, "bold"), padding=10)
+        self.style.configure("Accent.TButton", background="#00ffcc", foreground="#1e1e1e")
         self.style.configure("Horizontal.TProgressbar", thickness=10, background="#00ffcc", troughcolor="#2d2d2d")
         
         self.setup_ui()
@@ -136,13 +155,33 @@ class ModernWizardGUI:
         self.header = ttk.Label(self.main_frame, text="PHISHING GUARD", style="Header.TLabel")
         self.header.pack(pady=(0, 5))
         
-        self.sub_header = ttk.Label(self.main_frame, text=f"UNIFIED SETUP: {SUITE_TYPE.upper()}", foreground="#888888")
-        self.sub_header.pack(pady=(0, 30))
+        self.sub_header = ttk.Label(self.main_frame, text=f"UNIFIED SECURITY SUITE", foreground="#888888", font=("Helvetica", 9, "bold"))
+        self.sub_header.pack(pady=(0, 10))
 
+        # Content Area
         self.content_frame = tk.Frame(self.main_frame, bg="#1e1e1e")
         self.content_frame.pack(fill="both", expand=True)
         
-        self.show_step_1()
+        self.show_dashboard()
+
+    def show_dashboard(self):
+        self.clear_content()
+        reg = SetupEngine.get_current_registry()
+        
+        if reg:
+            # Status Badge
+            badge_frame = tk.Frame(self.content_frame, bg="#2d2d2d", padx=10, pady=5)
+            badge_frame.pack(pady=10)
+            ttk.Label(badge_frame, text=f"🛡️ PROTECTED: {reg['active_email']}", style="Badge.TLabel").pack()
+            
+            ttk.Label(self.content_frame, text=f"Currently monitored via {reg['suite_type'].upper()} suite.", foreground="#888888").pack(pady=5)
+            ttk.Label(self.content_frame, text="\nChoose an action below:", font=("Helvetica", 10, "bold")).pack(pady=10)
+            
+            ttk.Button(self.content_frame, text="Change Account / Re-link", command=self.show_step_1).pack(pady=5, fill="x")
+            ttk.Button(self.content_frame, text="Modify Protection Settings", command=self.show_step_3).pack(pady=5, fill="x")
+        else:
+            ttk.Label(self.content_frame, text="Welcome! No accounts are currently protected.", foreground="#888888").pack(pady=20)
+            ttk.Button(self.content_frame, text="Get Started →", command=self.show_step_1, style="Accent.TButton").pack(pady=10, ipady=5)
 
     def show_step_1(self):
         self.clear_content()
@@ -152,7 +191,10 @@ class ModernWizardGUI:
         self.email_entry = tk.Entry(self.content_frame, width=35, bg="#2d2d2d", fg="white", 
                                    insertbackground="white", font=("Helvetica", 12), relief="flat", highlightthickness=1)
         self.email_entry.pack(pady=15, ipady=5)
-        self.email_entry.insert(0, "")
+        self.email_entry.focus_set()
+        
+        # Enter key binding
+        self.root.bind("<Return>", lambda e: self.show_step_2())
 
         self.next_btn = ttk.Button(self.content_frame, text="Next Step →", command=self.show_step_2)
         self.next_btn.pack(pady=20)
@@ -173,6 +215,10 @@ class ModernWizardGUI:
         self.key_entry = tk.Entry(self.content_frame, width=35, show="*", bg="#2d2d2d", fg="#00ffcc", 
                                  font=("Helvetica", 14, "bold"), justify="center", relief="flat", highlightthickness=1)
         self.key_entry.pack(pady=10, ipady=8)
+        self.key_entry.focus_set()
+
+        # Update Enter key binding
+        self.root.bind("<Return>", lambda e: self.run_verification())
 
         self.verify_btn = ttk.Button(self.content_frame, text="Verify & Connect", command=self.run_verification)
         self.verify_btn.pack(pady=20)
@@ -213,6 +259,9 @@ class ModernWizardGUI:
         self.install_btn = ttk.Button(self.content_frame, text="⚡ Enable Now", command=self.run_install)
         self.install_btn.pack(pady=10)
         
+        # Rebind Enter to Install
+        self.root.bind("<Return>", lambda e: self.run_install())
+        
         self.skip_btn = ttk.Button(self.content_frame, text="Skip for Now", command=self.finish)
         self.skip_btn.pack(pady=5)
 
@@ -252,6 +301,8 @@ class ModernWizardGUI:
         self.root.destroy()
 
     def clear_content(self):
+        # Unbind Enter just in case
+        self.root.unbind("<Return>")
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
@@ -282,6 +333,13 @@ def cli_masked_input(prompt):
 
 def cli_wizard():
     print("\n\033[96m\033[1m--- PHISHING GUARD ONBOARDING ---\033[0m")
+    
+    # Show current status
+    reg = SetupEngine.get_current_registry()
+    if reg:
+        print(f"\033[92m🛡️  CURRENTLY PROTECTED: {reg['active_email']} ({reg['suite_type'].upper()})\033[0m")
+        if input("\nWould you like to change the account? (y/n): ").lower() != 'y': return
+
     email = input("\nEmail Address: ").strip()
     print("\n[Action] Opening browser for Security Key...")
     webbrowser.open("https://myaccount.google.com/apppasswords", new=1)
