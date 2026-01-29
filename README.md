@@ -30,7 +30,7 @@ The **Unified Suite** is the recommended way to use Phishing Guard. It includes 
     ```bash
     python3 setup_wizard.py
     ```
-    *Follow the on-screen instructions to link your email (OTP-style for Gmail) and enable background protection.*
+    *Follow the on-screen instructions to link your email (secure 16-digit key with live verification) and enable background protection.*
 
 3.  **Enjoy 24/7 Protection**
     You can close the terminal. Phishing Guard will now send you a desktop notification whenever a threat is found.
@@ -41,14 +41,18 @@ The **Unified Suite** is the recommended way to use Phishing Guard. It includes 
 
 If you want to use individual components:
 
-### 1. Interactive URL Scanner (CLI)
+### 1. Unified Email Scanner (CLI)
 ```bash
-python detect.py https://paypa1.com
+# Scan a file
+python email_scanner.py sample_phishing.eml
+
+# Start real-time monitoring
+python email_scanner.py --monitor
 ```
 
-### 2. File Scanner (.eml)
+### 2. Interactive URL Scanner (CLI)
 ```bash
-python scan_email.py sample_phishing.eml
+python detect.py https://paypa1.com
 ```
 
 ### 3. Run as a Web Service (API)
@@ -82,7 +86,6 @@ The system uses a **Tiered Detection Logic** to optimize resources:
 ├── 04_inference/     # FastAPI Service code
 ├── 05_utils/         # Core Scrapers & Detectors
 ├── setup_wizard.py   # NEW: Professional Onboarding Wizard
-├── imap_scanner.py   # NEW: Background Daemon Watchdog
-├── detect.py         # CLI Tool
-└── scan_email.py     # EML Parser
+├── email_scanner.py  # NEW: Unified Email Watchdog & File Scanner
+└── detect.py         # CLI Tool
 ```

@@ -17,8 +17,8 @@ Run the setup wizard to connect your email securely.
 cd ~/phishing_detection_project
 python3 setup_wizard.py
 ```
-*   **For Gmail**: Follow the guided setup to generate a secure Security Key (App Password).
-*   **For Others**: Provide your IMAP server details.
+*   **Guided Setup**: The script will automatically guide you to generate a secure **16-digit Security Key** (App Password) from Google.
+*   **Live Verification**: The system will automatically test the connection to ensure your key is working before completing setup.
 
 ### 2. Activate Background Protection
 During the setup wizard, choose **"Yes"** when asked to install system services. This ensures Phishing Guard starts automatically every time you turn on your computer.
@@ -35,7 +35,7 @@ Once active, Phishing Guard runs silently in the background.
 
 ### Components
 1.  **The Engine (API)**: A FastAPI server running the ML models and 4-category classifier.
-2.  **The Watchdog (Scanner)**: A background daemon monitoring your inbox via IMAP.
+2.  **The Watchdog (Scanner)**: A background daemon monitoring your inbox via secure IMAP connection.
 3.  **The Integrations**: Compatible with the Thunderbird Phishing Guard add-on.
 
 ### Management Commands

@@ -8,6 +8,7 @@ import time
 import webbrowser
 import tty
 import termios
+import imaplib
 
 # Identify which suite this is
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +35,7 @@ def get_masked_input(prompt):
             c = sys.stdin.read(1)
             if c in ('\r', '\n'):
                 break
-            if c == '\x7f': # Backspace
+            if c == '\x7f' or ord(c) == 127: # Backspace
                 if chars:
                     chars.pop()
                     sys.stdout.write('\b \b')
@@ -111,12 +112,32 @@ def check_existing_account():
                         sys.exit(0)
         except: pass
 
+def verify_credentials(email_addr, password, server):
+    """Attempt a live IMAP login to verify credentials."""
+    print(f"\n\033[94mVerifying connection to {server}... \033[0m", end='', flush=True)
+    try:
+        mail = imaplib.IMAP4_SSL(server)
+        mail.login(email_addr, password)
+        mail.logout()
+        print("\033[92m✅ Verified!\033[0m")
+        return True
+    except imaplib.IMAP4.error as e:
+        print(f"\033[91m❌ Failed: {e}\033[0m")
+        return False
+    except Exception as e:
+        print(f"\033[91m❌ Error: {e}\033[0m")
+        return False
+
 def setup_email():
     check_existing_account()
     run_step(1, "Link Your Email Account", "Connects Phishing Guard to your inbox for real-time monitoring.")
     
-    email_addr = input("\n\033[1mEnter your Gmail Address:\033[0m ").strip()
-    
+    while True:
+        email_addr = input("\n\033[1mEnter your Email Address:\033[0m ").strip()
+        if "@" in email_addr and "." in email_addr:
+            break
+        print("\033[91m❌ Invalid email format. Please try again.\033[0m")
+
     if "gmail.com" in email_addr.lower():
         setup_gmail_guided(email_addr)
     else:
@@ -132,24 +153,44 @@ def setup_gmail_guided(email_addr):
     print("\n\033[94m[Gmail Guided Setup]\033[0m")
     print("1. Browser opens to Google Security page.")
     print("2. Create an 'App Password' named 'Phishing Guard'.")
-    print("3. Paste the 16-character code here (will show as asterisks).")
+    print("3. Paste the 16-character code here.")
     
     if input("\nOpen browser now? (y/n): ").lower() != 'n':
         webbrowser.open("https://myaccount.google.com/apppasswords")
     
-    password = get_masked_input("\n\033[1mPaste Security Key here: \033[0m").strip().replace(" ", "")
-    _save_config({"auth_type": "standard", "server": "imap.gmail.com", "email": email_addr, "password": password})
+    while True:
+        password = get_masked_input("\n\033[1mPaste Security Key here: \033[0m").strip().replace(" ", "")
+        
+        if len(password) != 16:
+            print(f"\033[91m❌ Invalid Key: Google Security Keys must be exactly 16 characters (you gave {len(password)}).\033[0m")
+            continue
+            
+        if verify_credentials(email_addr, password, "imap.gmail.com"):
+            _save_config({"auth_type": "standard", "server": "imap.gmail.com", "email": email_addr, "password": password})
+            break
+        else:
+            print("\033[93mPlease double-check your email and security key.\033[0m")
 
 def setup_standard_imap(email_addr):
     print("\n\033[96m[Custom IMAP Setup]\033[0m")
     server = input("IMAP Server (e.g. imap.mail.yahoo.com): ").strip()
-    password = get_masked_input("\n\033[1mPassword: \033[0m").strip()
-    _save_config({"auth_type": "standard", "server": server, "email": email_addr, "password": password})
+    
+    while True:
+        password = get_masked_input("\n\033[1mPassword: \033[0m").strip()
+        if not password:
+            print("\033[91m❌ Password cannot be empty.\033[0m")
+            continue
+            
+        if verify_credentials(email_addr, password, server):
+            _save_config({"auth_type": "standard", "server": server, "email": email_addr, "password": password})
+            break
+        else:
+            print("\033[93mConnection failed. Please check your credentials and server address.\033[0m")
 
 def _save_config(config):
     with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
     os.chmod(CONFIG_FILE, 0o600)
-    print(f"\n\033[92m✅ Success! Account linked.\033[0m")
+    print(f"\n\033[92m✅ Success! Account linked and verified.\033[0m")
 
 def install_services():
     run_step(2, "Activate 24/7 Protection", f"Installs Phishing Guard ({SUITE_TYPE}) as a silent background service.")
