@@ -53,8 +53,17 @@ class Colors:
     END = '\033[0m'
 
 def send_desktop_notification(title, message, timeout=10):
-    """Send a native desktop notification with fallback."""
+    """Send a native desktop notification with robust fallback."""
     print(f"\n{Colors.BOLD}[NOTIFICATION] {title}: {message}{Colors.END}")
+    
+    # Try notify-send first (more reliable on Linux daemons)
+    try:
+        subprocess.run(["notify-send", "-a", "Phishing Guard", "-u", "critical", title, message], check=False)
+        return # If successful, stop here
+    except:
+        pass
+
+    # Fallback to plyer
     try:
         notification.notify(
             title=f"Phishing Guard: {title}",
@@ -63,8 +72,7 @@ def send_desktop_notification(title, message, timeout=10):
             timeout=timeout
         )
     except:
-        try: subprocess.run(["notify-send", f"Phishing Guard: {title}", message], check=False)
-        except: pass
+        pass
 
 def extract_urls_from_text(text):
     """Find all URLs in a text string."""
@@ -149,12 +157,18 @@ async def monitor_inbox(service, force_offline=False, daemon_mode=False):
                     urls = parse_email_content(msg)
                     if urls:
                         found_phish = False
+                        highest_threat = ""
                         for url in urls:
                             res = await service.analyze_url_async(url, force_mllm=is_online)
                             if res['classification'] != 'legitimate':
                                 found_phish = True
+                                # Map internal classification to display name
+                                cat = res['classification'].upper().replace('_', ' ')
+                                if not highest_threat or "KIT" in cat: # Prioritize KIT > AI > PHISH
+                                    highest_threat = cat
                         if found_phish:
-                            send_desktop_notification("⚠️ SECURITY ALERT", f"Phishing detected in: {subject}")
+                            title = f"🚨 {highest_threat} DETECTED"
+                            send_desktop_notification(title, f"Threat found in: {subject}")
                 last_id = curr_max
             
             mail.logout()
