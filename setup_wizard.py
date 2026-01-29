@@ -7,29 +7,92 @@ import subprocess
 import time
 import webbrowser
 
-# Use dynamic absolute paths
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+# Identify which suite this is
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Check if we are in hub or main project
+if "lightweight" in CURRENT_DIR:
+    SUITE_TYPE = "lightweight"
+elif "advanced_ai" in CURRENT_DIR:
+    SUITE_TYPE = "advanced_ai"
+else:
+    SUITE_TYPE = "standard"
+
+PROJECT_ROOT = CURRENT_DIR
 CONFIG_FILE = os.path.join(PROJECT_ROOT, "email_config.json")
+REGISTRY_FILE = os.path.expanduser("~/.phishing_guard_registry.json")
 
 def print_banner():
-    print("""
-\033[96m\033[1m
+    color = "\033[92m" if "lightweight" in SUITE_TYPE else "\033[95m"
+    print(f"""
+{color}\033[1m
   ██████╗ ██╗  ██╗██╗███████╗██╗  ██╗██╗███╗   ██╗ ██████╗ 
   ██╔══██╗██║  ██║██║██╔════╝██║  ██║██║████╗  ██║██╔════╝ 
   ██████╔╝███████║██║███████╗███████║██║██╔██╗ ██║██║  ███╗
   ██╔═══╝ ██╔══██║██║╚════██║██╔══██║██║██║╚██╗██║██║   ██║
   ██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║╚██████╔╝
   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
-                 GUARDS YOUR INBOX 24/7
+                 [Phishing Guard Team]
+                 VERSION: {SUITE_TYPE.upper()}
 \033[0m""")
 
 def run_step(number, title, description):
     print(f"\n\033[1mStep {number}: {title}\033[0m")
     print(f"\033[90m{description}\033[0m")
 
+def check_system_readiness():
+    run_step(0, "System Readiness Check", "Verifying hardware and installing necessary components.")
+    
+    # 1. GPU Check for AI version
+    if SUITE_TYPE == "advanced_ai":
+        try:
+            import torch
+            if not torch.cuda.is_available():
+                print("\n\033[93m⚠️  WARNING: No NVIDIA GPU detected.\033[0m")
+                print("The 'Advanced AI' version requires a GPU for acceptable performance.")
+                print("Consider using the 'Lightweight' version in the other folder.")
+                if input("\nContinue anyway? (y/n): ").lower() != 'y': sys.exit(0)
+        except:
+            pass
+
+    # 2. Install Dependencies
+    print("\n\033[94mChecking Python dependencies...\033[0m")
+    req_file = os.path.join(PROJECT_ROOT, "requirements.txt")
+    if os.path.exists(req_file):
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", req_file], check=True)
+            print("\033[92m✅ Dependencies verified.\033[0m")
+        except:
+            print("\033[91m❌ Failed to install dependencies. Please run 'pip install -r requirements.txt' manually.\033[0m")
+
+    # 3. Playwright Installation
+    print("\n\033[94mChecking Web Scraper (Playwright)...\033[0m")
+    try:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+        print("\033[92m✅ Web Scraper ready.\033[0m")
+    except:
+        print("\033[91m❌ Failed to install Playwright browser.\033[0m")
+
+def check_existing_account():
+    if os.path.exists(REGISTRY_FILE):
+        try:
+            with open(REGISTRY_FILE, 'r') as f:
+                reg = json.load(f)
+                email = reg.get("active_email")
+                suite = reg.get("suite_type")
+                if email:
+                    print(f"\n\033[91m\033[1m⚠️  WARNING: ACCOUNT ALREADY PROTECTED\033[0m")
+                    print(f"\033[93mThe account '{email}' is already being guarded by the '{suite}' version.\033[0m")
+                    print("Adding multiple guards to the same account is not recommended.")
+                    
+                    choice = input("\nDo you want to (1) Replace it or (2) Stop this setup? (1/2): ")
+                    if choice != "1":
+                        print("\nSetup stopped to prevent protection overlap.")
+                        sys.exit(0)
+        except: pass
+
 def setup_email():
-    print_banner()
-    run_step(1, "Link Your Email Account", "This connects Phishing Guard to your inbox using a secure access key.")
+    check_existing_account()
+    run_step(1, "Link Your Email Account", "Connects Phishing Guard to your inbox for real-time monitoring.")
     
     email_addr = input("\n\033[1mEnter your Email Address:\033[0m ").strip()
     
@@ -37,129 +100,88 @@ def setup_email():
         setup_gmail_guided(email_addr)
     else:
         setup_standard_imap(email_addr)
+    
+    # Update registry
+    try:
+        with open(REGISTRY_FILE, 'w') as f:
+            json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
+    except: pass
 
 def setup_gmail_guided(email_addr):
-    print("\n\033[94m[Gmail Detection: Guided Setup]\033[0m")
-    print("Google requires a 16-character 'App Password' to allow background monitoring.")
-    print("Think of this as a secure Security Key just for this app.")
+    print("\n\033[94m[Gmail Guided Setup]\033[0m")
+    print("1. Browser opens to Google Security page.")
+    print("2. Create an 'App Password' named 'Phishing Guard'.")
+    print("3. Paste the 16-character code here.")
     
-    print("\n\033[1mInstructions:\033[0m")
-    print("1. A browser window will open to your Google Security page.")
-    print("2. Login (if asked) and look for 'App passwords'.")
-    print("3. Give it a name like 'Phishing Guard' and click Create.")
-    print("4. \033[92mCopy the 16-character code\033[0m and paste it here.")
-    
-    open_browser = input("\nOpen Google Security page now? (y/n): ").lower()
-    if open_browser != 'n':
+    if input("\nOpen browser now? (y/n): ").lower() != 'n':
         webbrowser.open("https://myaccount.google.com/apppasswords")
     
-    password = getpass.getpass("\n\033[1mPaste your 16-character Security Key here:\033[0m ").strip().replace(" ", "")
-    
-    if len(password) != 16:
-        print("\033[93mWarning: Most Google Security Keys are 16 characters long. Double check if it fails.\033[0m")
-
-    config = {
-        "auth_type": "standard",
-        "server": "imap.gmail.com",
-        "email": email_addr,
-        "password": password
-    }
-    _save_config(config)
+    password = getpass.getpass("\n\033[1mPaste Security Key here:\033[0m ").strip().replace(" ", "")
+    _save_config({"auth_type": "standard", "server": "imap.gmail.com", "email": email_addr, "password": password})
 
 def setup_standard_imap(email_addr):
-    print("\n\033[96m[Standard IMAP Setup]\033[0m")
-    print("Find your server settings in your email app's 'Account Settings' or 'Help' page.")
-    print("Common Servers:")
-    print("  - Outlook: \033[94moutlook.office365.com\033[0m")
-    print("  - Yahoo:   \033[94mimap.mail.yahoo.com\033[0m")
-    
-    server = input("\nIMAP Server (e.g., imap.mail.yahoo.com): ").strip()
-    password = getpass.getpass("Password / App Password: ").strip()
-    
-    config = {
-        "auth_type": "standard",
-        "server": server,
-        "email": email_addr,
-        "password": password
-    }
-    _save_config(config)
+    print("\n\033[96m[Custom IMAP Setup]\033[0m")
+    server = input("IMAP Server (e.g. imap.mail.yahoo.com): ").strip()
+    password = getpass.getpass("Password: ").strip()
+    _save_config({"auth_type": "standard", "server": server, "email": email_addr, "password": password})
 
 def _save_config(config):
-    with open(CONFIG_FILE, 'w') as f:
-        json.dump(config, f)
+    with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
     os.chmod(CONFIG_FILE, 0o600)
-    print(f"\n\033[92m✅ Success! Account linked to {config['email']}\033[0m")
+    print(f"\n\033[92m✅ Success! Account linked.\033[0m")
 
-def install_system_services():
-    run_step(2, "Activate Automatic Protection", "This ensures Phishing Guard starts every time you turn on your computer.")
-    
-    install = input("\nEnable 24/7 background protection? (y/n): ").lower()
-    if install != 'y':
-        print("\033[93mManual start required: python3 imap_scanner.py\033[0m")
-        return
+def install_services():
+    run_step(2, "Activate 24/7 Protection", "Installs Phishing Guard as a silent background service.")
+    if input("\nEnable background protection? (y/n): ").lower() != 'y': return
 
     user = getpass.getuser()
-    python_path = sys.executable
-    service_dir = "/etc/systemd/system"
-    
-    # Define services
-    api_service = f"""[Unit]
-Description=Phishing Guard API Backbone
+    py = sys.executable
+    api_svc = f"phishing-api-{SUITE_TYPE}.service"
+    mon_svc = f"phishing-monitor-{SUITE_TYPE}.service"
+
+    # API Service Template
+    api_content = f"""[Unit]
+Description=Phishing Guard API ({SUITE_TYPE})
 After=network.target
-
 [Service]
-ExecStart={python_path} {PROJECT_ROOT}/04_inference/api.py
+ExecStart={py} {PROJECT_ROOT}/04_inference/api.py
 WorkingDirectory={PROJECT_ROOT}
 Restart=always
 User={user}
-
 [Install]
-WantedBy=multi-user.target
-"""
+WantedBy=multi-user.target"""
 
-    scanner_service = f"""[Unit]
-Description=Phishing Guard IMAP Watchdog
-After=network.target phishing-api.service
-
+    # Monitor Service Template
+    mon_content = f"""[Unit]
+Description=Phishing Guard Email Watchdog ({SUITE_TYPE})
+After=network.target {api_svc}
 [Service]
-ExecStart={python_path} {PROJECT_ROOT}/imap_scanner.py --daemon
+ExecStart={py} {PROJECT_ROOT}/email_scanner.py --monitor --daemon
 WorkingDirectory={PROJECT_ROOT}
 Restart=always
 User={user}
-
 [Install]
-WantedBy=multi-user.target
-"""
+WantedBy=multi-user.target"""
 
     try:
-        # We'll write to temp files first, then use sudo to copy them
-        with open("/tmp/phishing-api.service", "w") as f: f.write(api_service)
-        with open("/tmp/phishing-scanner.service", "w") as f: f.write(scanner_service)
+        for name, content in [(api_svc, api_content), (mon_svc, mon_content)]:
+            with open(f"/tmp/{name}", "w") as f: f.write(content)
+            subprocess.run(["sudo", "cp", f"/tmp/{name}", "/etc/systemd/system/"], check=True)
         
-        print("\n\033[93m[System Action] Admin permission required to install services...\033[0m")
-        subprocess.run(["sudo", "cp", "/tmp/phishing-api.service", f"{service_dir}/"], check=True)
-        subprocess.run(["sudo", "cp", "/tmp/phishing-scanner.service", f"{service_dir}/"], check=True)
-        
-        print("Configuring system...")
         subprocess.run(["sudo", "systemctl", "daemon-reload"], check=True)
-        subprocess.run(["sudo", "systemctl", "enable", "phishing-api.service", "phishing-scanner.service"], check=True)
-        subprocess.run(["sudo", "systemctl", "start", "phishing-api.service", "phishing-scanner.service"], check=True)
-        
-        print("\n\033[92m🚀 PROTECTION IS ACTIVE!\033[0m")
-        print("Phishing Guard is now running silently in the background.")
-        print("You will see a notification here if a threat is detected.")
-        
-    except Exception as e:
-        print(f"\n\033[91m❌ Installation failed: {e}\033[0m")
-        print("You can try running the scanner manually with: python3 imap_scanner.py")
+        subprocess.run(["sudo", "systemctl", "enable", api_svc, mon_svc], check=True)
+        subprocess.run(["sudo", "systemctl", "start", api_svc, mon_svc], check=True)
+        print(f"\n\033[92m🚀 PROTECTION ACTIVE! Check alerts in your desktop notifications.\033[0m")
+    except Exception as e: print(f"\033[91m❌ Failed: {e}\033[0m")
 
 def main():
     try:
+        print_banner()
+        check_system_readiness()
         setup_email()
-        install_system_services()
-        print("\n\033[96m\033[1mSetup Complete! You can close this terminal.\033[0m")
-    except KeyboardInterrupt:
-        print("\n\n\033[93mSetup cancelled by user.\033[0m")
+        install_services()
+        print("\n\033[96m\033[1mOnboarding Complete. Goodbye!\033[0m")
+    except KeyboardInterrupt: print("\n\n\033[93mCancelled.\033[0m")
 
 if __name__ == "__main__":
     main()
