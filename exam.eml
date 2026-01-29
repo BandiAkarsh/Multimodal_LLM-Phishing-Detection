@@ -1,0 +1,116 @@
+Delivered-To: akarshbandi82@gmail.com
+Received: by 2002:a05:6124:3321:b0:42f:a5fe:e3fb with SMTP id bo33csp751049vlb;
+        Thu, 29 Jan 2026 08:08:33 -0800 (PST)
+X-Received: by 2002:a05:690c:806:b0:794:413b:7ec5 with SMTP id 00721157ae682-7949ded753amr902617b3.30.1769702913528;
+        Thu, 29 Jan 2026 08:08:33 -0800 (PST)
+ARC-Seal: i=2; a=rsa-sha256; t=1769702913; cv=pass;
+        d=google.com; s=arc-20240605;
+        b=bh9BGPXPBU9jNjU98ve2GAbuvfv2DYfnyW9L3wlz92DiIp3CrPZqcXLhKmMPTSgkPB
+         TwJLiPsq77xk0zOH/0NNzRzXkdRqLayD227B/gXYtvhs1LZhstXXXIbubFSNhm1nDZiD
+         0LuaLd4IXFUufV9n53ojB0/U5Y8LWy8qAuSs/YcrlOoM+yO1afMnNFFkGcwU2eXnijtS
+         9ppOgRDDFdCIlu3yvZBdSXFRmlo3Wha3m+lLriQsEqdPyAyiOMObMA6iJNSLB3PbKDI2
+         NwR3JR/B4Ld9g1a6Cx0vgjr3zpuZ0kBewNB2QXCzeZzXE7pgMv9JiS2P5BEdmanlN6j0
+         07tw==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=IWocb39JjI2Jl0tOICelYJ9bqTq+4Tx9es0FCumPB+g=;
+        fh=7UExBUmmGvS3Kw4u1232m1ETAq4zKBLLuz38RrN3dlk=;
+        b=QGIgVsl4rjNp/AaVjUdOEcUf/gSy2Jt0GMDXDdHjmFfbl850AKv6pitng3j04tFX6c
+         rEpLclj+n2Zc3J7gi6ub2nhmpj0kCjXcZCd5uiRpKpdHVS5rBckKFOwfPsHYPPAIDxGM
+         PbCH0RN/bpVAFwNaSM5K1CaP7DdmKjUKlcmn5z6QHH3v0/94kzPEy1Lf9eJKC9ybyuc3
+         iMq9k5o9nqIbtvuFaFGdBzA1GWmG+MXdqGfwWrjViNW+n3w0y0IgaxbVWXN8WIPw2OjR
+         U7t5tRjR71RXuNvobadcrYsAbmGd2e17HlYO4haHrj++IxlqZXgFBLaKRmZ24oupi7ZE
+         1YRA==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=XSmH1W6O;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of akarshbandi70@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=akarshbandi70@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=pass header.i=@gmail.com
+Return-Path: <akarshbandi70@gmail.com>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 00721157ae682-7948289b021sor39939217b3.13.2026.01.29.08.08.33
+        for <akarshbandi82@gmail.com>
+        (Google Transport Security);
+        Thu, 29 Jan 2026 08:08:33 -0800 (PST)
+Received-SPF: pass (google.com: domain of akarshbandi70@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20230601 header.b=XSmH1W6O;
+       arc=pass (i=1);
+       spf=pass (google.com: domain of akarshbandi70@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=akarshbandi70@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com;
+       dara=pass header.i=@gmail.com
+ARC-Seal: i=1; a=rsa-sha256; t=1769702913; cv=none;
+        d=google.com; s=arc-20240605;
+        b=Y8hVm95NTBijW4th2knfoyJzXdXjl1I58zA/bgpNKSc9NNB1Hf8rK1mGEOxGUJ99JH
+         YRsgOPklUtGr1Sl3QGiygoa2renKST2ZeY9qrICwZrQtOrEGKEgOqsnPlUOmaoPsPnME
+         lgwIoybAPLColJhjMSOgcnXzvfDrG3Dokb8/ZW8miEbKSxIdkh12dk9nFpeUK2n54irz
+         QJw4ZbxngMZQ04bboNdgP72v5oi7u7LiEEAYRJRY9SamPZRQXCiNigjGRFwL2fsuuYer
+         UFVfhWkftl46K2b4fqOERo0tluFnvhzyaV/888N+BnZnjLQ2wUGYeU5cngUeCYin5mHb
+         C2qg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=IWocb39JjI2Jl0tOICelYJ9bqTq+4Tx9es0FCumPB+g=;
+        fh=7UExBUmmGvS3Kw4u1232m1ETAq4zKBLLuz38RrN3dlk=;
+        b=QPqmu/7Khhk1MOrjOuKHY5zwa34zEsWAqbPFYLoMKqqeMGM9JuODYjRK5scoMhDkHW
+         qGF9kV/U+7TG+FK6MrCutLYm8NZSTbAGhiWOwWodaxG8QsoTL0ju4B6ZkOSLpBBQcn/f
+         YVUH7g9gMDXOjTGNiWBVfqLqhVq0PhT27GUGYe/SWkOQLBZEu8wRu1zSNuRcwSdafQuf
+         ijD8n2gdo+4S3kg8ceS924Dv4VdIvdevx+VBFABKacMuvCZirpYItVaUtrsIGvoQ7Jid
+         FDN/OaadyLmhCZE14F2pvRXVgDL9FKaRz05okNvWoX2XFG/aGCwT0XOl9SOf6T/Mnkn+
+         63Kw==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20230601; t=1769702913; x=1770307713; dara=google.com;
+        h=to:subject:message-id:date:from:mime-version:from:to:cc:subject
+         :date:message-id:reply-to;
+        bh=IWocb39JjI2Jl0tOICelYJ9bqTq+4Tx9es0FCumPB+g=;
+        b=XSmH1W6OSbHEzdc6kyZIca9QYWRJABDm1FKRSEF13uEUjcgpypKl+LK+dXjCCr4oQ3
+         a4SmKvnjqXXOBoxiUw4AvbEzEGheSVDerzoqlZbikhxqYnSelrXnRKB//4HhTcvtPCoa
+         HsS6tUHl4C9ElREsgkUwDrGUZG0+s2LDm5K3k7cLFnwfCO1MHl+i6yQLcL2cWRC85X/d
+         higk0MNpkvF/engDCC1r3X9Z4nsP8Ohz9JOdHkvzFcIhk2F3riqxwkxTyvS/DD7GX2Be
+         9Xvb8TP2t5oGjV3YfD5uUu+RBxE2zzWdDntdWDfYzQgGIXwDv4bYllUiuN4e88Uaa5+C
+         njKg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20230601; t=1769702913; x=1770307713;
+        h=to:subject:message-id:date:from:mime-version:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=IWocb39JjI2Jl0tOICelYJ9bqTq+4Tx9es0FCumPB+g=;
+        b=WrNy0BdBwZeRz4F3Ohy4TyctESiYHvKkOBxdWkNefXamK12wAtM6D1/97vD89IPpL6
+         S1TrBPN3LWfZJ8tQv46Msu3bouVyLu5xq6RFoAH/RP9eozZLW5U1HRSAov8U8D5V12r+
+         4NdmBhJUxbDPQYxknp1OIEE1ZnHbfveWcxOFKoQBu4CjRtZgEqqjmFBXlOw/XxJ0UZhf
+         eObisqPq/vnecQ6xq4RrRNp+UEfvaSvTE7tzFz7yP9EDnIs8a+ljmNW67Y2InXw5bjzH
+         ApbtgaI4V5kBhaAMZx+kBQGWPhImMefDKgJSq6ogiz7NXVcoHV9n8b7NEh10/szuhnf/
+         uM4A==
+X-Gm-Message-State: AOJu0YxGkHtKw2WwGLCA6LXyBcCTLiU8bbW9MuhoDRYLzPxx81fxjhT+
+	x5TI/BaX2owiv6UW+2spdsVaIDtfHdkyim7LJu265AxABKzOwkoyA4mf9LgEvZR9Ga/0YgM1fPk
+	HqSiyEh1x/ngNU8m0yWpPE+xa/gaiKlQC+w==
+X-Gm-Gg: AZuq6aJErIUsKVYDpiF4+h+bUuFZI8etAO5/uVDGMy+d0b3CwnkyVDaYrXrzzQ12mU+
+	cYTsel3gJK/T/JreHW5ux5zgDnweQMdA38BtZhMNk3NnhYv6UuCW2IeIM8Rq7Jv6m1nEJbfpIuL
+	baXoMjyZHALcIsgwMyemGz3/nUHzvk9/zI8EVeNxC0xEcxqclaZVeCQsOAtUusbTAlFBeKiGxZP
+	RQ7yMmwDqoFxe5EL+kvUSnxC4FuK4wg7iGCisq56C/w2CGPfcgsYamTFnaRqhE1Xtxl+2Bc3N3H
+	9II9BCVKPFBNrlZTkikEDaWcjFwBSQ==
+X-Received: by 2002:a05:690e:1503:b0:641:f5bc:696c with SMTP id
+ 956f58d0204a3-6498fc663bemr6941198d50.72.1769702912874; Thu, 29 Jan 2026
+ 08:08:32 -0800 (PST)
+MIME-Version: 1.0
+From: Bandi Akarsh <akarshbandi70@gmail.com>
+Date: Thu, 29 Jan 2026 21:38:22 +0530
+X-Gm-Features: AZwV_Qgko6by_V0VCFz9l6MfBKTuH70NjWTWT7KmMOykH1VKpkszvhulbNXBt40
+Message-ID: <CABLVJKByqCS=5a0g-SnBia9B73nCNSz1u4AWpLRzXZP1uon3YQ@mail.gmail.com>
+Subject: Shi
+To: Bandi Akarsh <akarshbandi82@gmail.com>
+Content-Type: multipart/alternative; boundary="0000000000007ada3d0649891166"
+
+--0000000000007ada3d0649891166
+Content-Type: text/plain; charset="UTF-8"
+
+https://ghostwriterss.hakinuta.com/purpose-awakens-through-loss-raymond-watson-3/
+
+--0000000000007ada3d0649891166
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="auto"><a href="https://ghostwriterss.hakinuta.com/purpose-awakens-through-loss-raymond-watson-3/">https://ghostwriterss.hakinuta.com/purpose-awakens-through-loss-raymond-watson-3/</a></div>
+
+--0000000000007ada3d0649891166--

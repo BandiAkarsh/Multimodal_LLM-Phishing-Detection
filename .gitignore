@@ -39,3 +39,8 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+exam.eml
+send_ai_test.py
+send_detailed_test.py
+trigger_alert.py
