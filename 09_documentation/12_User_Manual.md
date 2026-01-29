@@ -17,7 +17,8 @@ Run the setup wizard to connect your email securely.
 cd ~/phishing_detection_project
 python3 setup_wizard.py
 ```
-*   **Guided Setup**: The script will automatically guide you to generate a secure **16-digit Security Key** (App Password) from Google.
+*   **Guided Setup**: The script will automatically open a **new browser window** to guide you to generate a secure **16-digit Security Key** (App Password) from Google.
+*   **Masked Input**: As you paste your key, it will be displayed as asterisks (`****`) for security.
 *   **Live Verification**: The system will automatically test the connection to ensure your key is working before completing setup.
 
 ### 2. Activate Background Protection
