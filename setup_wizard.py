@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Phishing Guard: Professional Onboarding Suite
-Version: 5.0 (Unified Dashboard, GUI & CLI)
+Version: 5.1 (Unified Dashboard, GUI & CLI with Notification Support)
 Branding: Phishing Guard Team
 """
 
@@ -78,15 +78,24 @@ class SetupEngine:
 
     @staticmethod
     def run_installer_script(progress_callback=None):
-        """Logic to install systemd services using a single pkexec call."""
+        """Logic to install systemd services with notification environment injection."""
         user = getpass.getuser()
+        uid = os.getuid()
         py = sys.executable
+        # Automatically detect current display environment
+        display = os.environ.get('DISPLAY', ':0')
+        xauth = os.environ.get('XAUTHORITY', f"/home/{user}/.Xauthority")
+        dbus = os.environ.get('DBUS_SESSION_BUS_ADDRESS', f"unix:path=/run/user/{uid}/bus")
+        
         api_svc = f"phishing-api-{SUITE_TYPE}.service"
         mon_svc = f"phishing-monitor-{SUITE_TYPE}.service"
 
+        # Environment block for notifications
+        env_block = f"Environment=DISPLAY={display}\nEnvironment=XAUTHORITY={xauth}\nEnvironment=DBUS_SESSION_BUS_ADDRESS={dbus}"
+
         # Service definitions
-        api_content = f"[Unit]\nDescription=Phishing Guard API ({SUITE_TYPE})\nAfter=network.target\n[Service]\nExecStart={py} {PROJECT_ROOT}/04_inference/api.py\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n[Install]\nWantedBy=multi-user.target"
-        mon_content = f"[Unit]\nDescription=Phishing Guard Email Watchdog ({SUITE_TYPE})\nAfter=network.target {api_svc}\n[Service]\nExecStart={py} {PROJECT_ROOT}/email_scanner.py --monitor --daemon\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n[Install]\nWantedBy=multi-user.target"
+        api_content = f"[Unit]\nDescription=Phishing Guard API ({SUITE_TYPE})\nAfter=network.target\n[Service]\nExecStart={py} {PROJECT_ROOT}/04_inference/api.py\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n{env_block}\n[Install]\nWantedBy=multi-user.target"
+        mon_content = f"[Unit]\nDescription=Phishing Guard Email Watchdog ({SUITE_TYPE})\nAfter=network.target {api_svc}\n[Service]\nExecStart={py} {PROJECT_ROOT}/email_scanner.py --monitor --daemon\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n{env_block}\n[Install]\nWantedBy=multi-user.target"
 
         # Create temporary installer script
         installer_path = "/tmp/phishing_guard_installer.sh"
@@ -178,7 +187,7 @@ class ModernWizardGUI:
             ttk.Label(self.content_frame, text="\nChoose an action below:", font=("Helvetica", 10, "bold")).pack(pady=10)
             
             ttk.Button(self.content_frame, text="Change Account / Re-link", command=self.show_step_1).pack(pady=5, fill="x")
-            ttk.Button(self.content_frame, text="Modify Protection Settings", command=self.show_step_3).pack(pady=5, fill="x")
+            ttk.Button(self.content_frame, text="Update Current Protection", command=self.show_step_3).pack(pady=5, fill="x")
         else:
             ttk.Label(self.content_frame, text="Welcome! No accounts are currently protected.", foreground="#888888").pack(pady=20)
             ttk.Button(self.content_frame, text="Get Started →", command=self.show_step_1, style="Accent.TButton").pack(pady=10, ipady=5)
