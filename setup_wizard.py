@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Phishing Guard: Professional Onboarding Suite
+Version: 3.0 (Unified CLI & GUI)
+Branding: Phishing Guard Team
+"""
+
 import os
 import sys
 import json
@@ -9,241 +15,259 @@ import webbrowser
 import tty
 import termios
 import imaplib
+import tkinter as tk
+from tkinter import ttk, messagebox
+from threading import Thread
 
-# Identify which suite this is
+# --- CONFIGURATION & PATHS ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if "lightweight" in CURRENT_DIR:
     SUITE_TYPE = "lightweight"
 elif "advanced_ai" in CURRENT_DIR:
     SUITE_TYPE = "advanced_ai"
 else:
-    SUITE_TYPE = "dev"
+    SUITE_TYPE = "standard"
 
 PROJECT_ROOT = CURRENT_DIR
 CONFIG_FILE = os.path.join(PROJECT_ROOT, "email_config.json")
 REGISTRY_FILE = os.path.expanduser("~/.phishing_guard_registry.json")
 
+# --- CORE ENGINE (Shared Logic) ---
+
+class SetupEngine:
+    """Handles the heavy lifting of verification and installation."""
+    
+    @staticmethod
+    def verify_imap(email_addr, password, server="imap.gmail.com"):
+        """Live verification of credentials."""
+        try:
+            mail = imaplib.IMAP4_SSL(server)
+            mail.login(email_addr, password)
+            mail.logout()
+            return True, "Verified Successfully"
+        except Exception as e:
+            return False, str(e)
+
+    @staticmethod
+    def save_config(email_addr, password, server="imap.gmail.com"):
+        config = {
+            "auth_type": "standard",
+            "server": server,
+            "email": email_addr,
+            "password": password
+        }
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f)
+        os.chmod(CONFIG_FILE, 0o600)
+        
+        # Update system registry
+        try:
+            with open(REGISTRY_FILE, 'w') as f:
+                json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
+        except: pass
+
+    @staticmethod
+    def install_services():
+        """Logic to install systemd services."""
+        user = getpass.getuser()
+        py = sys.executable
+        api_svc = f"phishing-api-{SUITE_TYPE}.service"
+        mon_svc = f"phishing-monitor-{SUITE_TYPE}.service"
+
+        api_content = f"[Unit]\nDescription=Phishing Guard API ({SUITE_TYPE})\nAfter=network.target\n[Service]\nExecStart={py} {PROJECT_ROOT}/04_inference/api.py\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n[Install]\nWantedBy=multi-user.target"
+        mon_content = f"[Unit]\nDescription=Phishing Guard Email Watchdog ({SUITE_TYPE})\nAfter=network.target {api_svc}\n[Service]\nExecStart={py} {PROJECT_ROOT}/email_scanner.py --monitor --daemon\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n[Install]\nWantedBy=multi-user.target"
+
+        try:
+            for name, content in [(api_svc, api_content), (mon_svc, mon_content)]:
+                with open(f"/tmp/{name}", "w") as f: f.write(content)
+                subprocess.run(["sudo", "cp", f"/tmp/{name}", "/etc/systemd/system/"], check=True)
+            
+            subprocess.run(["sudo", "systemctl", "daemon-reload"], check=True)
+            subprocess.run(["sudo", "systemctl", "enable", api_svc, mon_svc], check=True)
+            subprocess.run(["sudo", "systemctl", "start", api_svc, mon_svc], check=True)
+            return True, "Protection Active"
+        except Exception as e:
+            return False, str(e)
+
+# --- POLISHED GUI INTERFACE ---
+
+class ModernWizardGUI:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Phishing Guard Onboarding")
+        self.root.geometry("500x600")
+        self.root.configure(bg="#1e1e1e")
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        
+        # Custom Styling
+        self.style.configure("TLabel", background="#1e1e1e", foreground="#ffffff", font=("Helvetica", 10))
+        self.style.configure("Header.TLabel", font=("Helvetica", 16, "bold"), foreground="#00ffcc")
+        self.style.configure("Action.TButton", font=("Helvetica", 10, "bold"), padding=10)
+        
+        self.current_step = 0
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.main_frame = tk.Frame(self.root, bg="#1e1e1e", padx=40, pady=40)
+        self.main_frame.pack(fill="both", expand=True)
+
+        self.header = ttk.Label(self.main_frame, text="PHISHING GUARD", style="Header.TLabel")
+        self.header.pack(pady=(0, 10))
+        
+        self.sub_header = ttk.Label(self.main_frame, text=f"SETTING UP: {SUITE_TYPE.upper()} SUITE")
+        self.sub_header.pack(pady=(0, 30))
+
+        # Content Area
+        self.content_frame = tk.Frame(self.main_frame, bg="#1e1e1e")
+        self.content_frame.pack(fill="both", expand=True)
+        
+        self.show_step_1()
+
+    def show_step_1(self):
+        self.clear_content()
+        ttk.Label(self.content_frame, text="Step 1: Link Your Email", font=("Helvetica", 12, "bold")).pack(pady=10)
+        ttk.Label(self.content_frame, text="Enter the Gmail account you want to protect:").pack(pady=5)
+        
+        self.email_entry = tk.Entry(self.content_frame, width=40, bg="#2d2d2d", fg="white", insertbackground="white", font=("Helvetica", 11))
+        self.email_entry.pack(pady=10)
+        self.email_entry.insert(0, "")
+
+        btn = ttk.Button(self.content_frame, text="Next Step →", command=self.show_step_2)
+        btn.pack(pady=20)
+
+    def show_step_2(self):
+        self.email = self.email_entry.get()
+        if "@" not in self.email:
+            messagebox.showerror("Error", "Please enter a valid email address.")
+            return
+
+        self.clear_content()
+        ttk.Label(self.content_frame, text="Step 2: Generate Security Key", font=("Helvetica", 12, "bold")).pack(pady=10)
+        ttk.Label(self.content_frame, text="I will open Google Security settings. Create an\n'App Password' named 'Phishing Guard'.", justify="center").pack(pady=5)
+        
+        ttk.Button(self.content_frame, text="Open Browser", command=lambda: webbrowser.open("https://myaccount.google.com/apppasswords", new=1)).pack(pady=15)
+        
+        ttk.Label(self.content_frame, text="Paste the 16-character code below:").pack(pady=5)
+        self.key_entry = tk.Entry(self.content_frame, width=40, show="*", bg="#2d2d2d", fg="#00ffcc", font=("Helvetica", 12, "bold"), justify="center")
+        self.key_entry.pack(pady=10)
+
+        self.verify_btn = ttk.Button(self.content_frame, text="Verify & Connect", command=self.run_verification)
+        self.verify_btn.pack(pady=20)
+
+    def run_verification(self):
+        key = self.key_entry.get().strip().replace(" ", "")
+        if len(key) != 16:
+            messagebox.showerror("Error", "The key must be exactly 16 characters.")
+            return
+
+        self.verify_btn.config(state="disabled", text="Verifying...")
+        
+        def task():
+            success, msg = SetupEngine.verify_imap(self.email, key)
+            if success:
+                SetupEngine.save_config(self.email, key)
+                self.root.after(0, self.show_step_3)
+            else:
+                self.root.after(0, lambda: self.verification_failed(msg))
+
+        Thread(target=task).start()
+
+    def verification_failed(self, msg):
+        self.verify_btn.config(state="normal", text="Verify & Connect")
+        messagebox.showerror("Connection Failed", f"Google rejected the key.\nError: {msg}")
+
+    def show_step_3(self):
+        self.clear_content()
+        ttk.Label(self.content_frame, text="Step 3: Activate Protection", font=("Helvetica", 12, "bold")).pack(pady=10)
+        ttk.Label(self.content_frame, text="Would you like to turn on 24/7 background\nprotection for this system?", justify="center").pack(pady=10)
+        
+        self.install_btn = ttk.Button(self.content_frame, text="⚡ Enable Now", command=self.run_install)
+        self.install_btn.pack(pady=10)
+        
+        ttk.Button(self.content_frame, text="Skip", command=self.finish).pack(pady=5)
+
+    def run_install(self):
+        self.install_btn.config(state="disabled", text="Installing...")
+        success, msg = SetupEngine.install_services()
+        if success:
+            messagebox.showinfo("Success", "Phishing Guard is now active and guarding your inbox!")
+            self.finish()
+        else:
+            messagebox.showerror("Failed", f"Service installation failed: {msg}")
+            self.install_btn.config(state="normal", text="Try Again")
+
+    def finish(self):
+        self.root.destroy()
+        print("\nGUI Setup Complete.")
+
+    def clear_content(self):
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+
+    def run(self):
+        self.root.mainloop()
+
+# --- POLISHED CLI INTERFACE ---
+
 def get_masked_input(prompt):
-    """Read input and display asterisks instead of plain text."""
     print(prompt, end='', flush=True)
     chars = []
     fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
+    old = termios.tcgetattr(fd)
     try:
-        tty.setraw(sys.stdin.fileno())
+        tty.setraw(fd)
         while True:
             c = sys.stdin.read(1)
-            if c in ('\r', '\n'):
-                break
-            if c == '\x03': # Ctrl+C
-                raise KeyboardInterrupt
-            if c == '\x7f' or ord(c) == 127: # Backspace
+            if c in ('\r', '\n'): break
+            if c == '\x03': raise KeyboardInterrupt
+            if c in ('\x7f', '\x08'):
                 if chars:
                     chars.pop()
-                    sys.stdout.write('\b \b')
-                    sys.stdout.flush()
-            elif ord(c) >= 32: # Standard printable characters
+                    sys.stdout.write('\b \b'); sys.stdout.flush()
+            elif ord(c) >= 32:
                 chars.append(c)
-                sys.stdout.write('*')
-                sys.stdout.flush()
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                sys.stdout.write('*'); sys.stdout.flush()
+    finally: termios.tcsetattr(fd, termios.TCSADRAIN, old)
     print()
     return ''.join(chars)
 
-def print_banner():
-    color = "\033[92m" if "lightweight" in SUITE_TYPE else "\033[95m"
-    print(f"""
-{color}\033[1m
-  ██████╗ ██╗  ██╗██╗███████╗██╗  ██╗██╗███╗   ██╗ ██████╗ 
-  ██╔══██╗██║  ██║██║██╔════╝██║  ██║██║████╗  ██║██╔════╝ 
-  ██████╔╝███████║██║███████╗███████║██║██╔██╗ ██║██║  ███╗
-  ██╔═══╝ ██╔══██║██║╚════██║██╔══██║██║██║╚██╗██║██║   ██║
-  ██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║╚██████╔╝
-  ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
-                 [Phishing Guard Team]
-                 VERSION: {SUITE_TYPE.upper()}
-\033[0m""")
-
-def run_step(number, title, description):
-    print(f"\n\033[1mStep {number}: {title}\033[0m")
-    print(f"\033[90m{description}\033[0m")
-
-def check_system_readiness():
-    run_step(0, "System Readiness Check", "Verifying hardware and installing necessary components.")
+def cli_wizard():
+    print("\n\033[96m\033[1m--- PHISHING GUARD ONBOARDING ---\033[0m")
     
-    # 1. GPU Check for AI version
-    if SUITE_TYPE == "advanced_ai":
-        try:
-            import torch
-            if not torch.cuda.is_available():
-                print("\n\033[93m⚠️  WARNING: No NVIDIA GPU detected.\033[0m")
-                print("The 'Advanced AI' version requires a GPU for acceptable performance.")
-                if input("\nContinue anyway? (y/n): ").lower() != 'y': sys.exit(0)
-        except: pass
-
-    # 2. Install Dependencies
-    print("\n\033[94mChecking Python dependencies...\033[0m")
-    req_file = os.path.join(PROJECT_ROOT, "requirements.txt")
-    if os.path.exists(req_file):
-        try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "-r", req_file, "plyer", "beautifulsoup4"], check=True)
-            print("\033[92m✅ Dependencies verified.\033[0m")
-        except:
-            print("\033[91m❌ Failed to install dependencies.\033[0m")
-
-    # 3. Playwright Installation
-    print("\n\033[94mChecking Web Scraper (Playwright)...\033[0m")
-    try:
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-        print("\033[92m✅ Web Scraper ready.\033[0m")
-    except:
-        print("\033[91m❌ Failed to install Playwright browser.\033[0m")
-
-def check_existing_account():
-    if os.path.exists(REGISTRY_FILE):
-        try:
-            with open(REGISTRY_FILE, 'r') as f:
-                reg = json.load(f)
-                email = reg.get("active_email")
-                suite = reg.get("suite_type")
-                if email:
-                    print(f"\n\033[91m\033[1m⚠️  WARNING: ACCOUNT ALREADY PROTECTED\033[0m")
-                    print(f"\033[93mThe account '{email}' is already being guarded by the '{suite}' version.\033[0m")
-                    if input("\nDo you want to (1) Replace it or (2) Stop setup? (1/2): ") != "1":
-                        sys.exit(0)
-        except: pass
-
-def verify_credentials(email_addr, password, server):
-    """Attempt a live IMAP login to verify credentials."""
-    print(f"\n\033[94mVerifying connection to {server}... \033[0m", end='', flush=True)
-    try:
-        mail = imaplib.IMAP4_SSL(server)
-        mail.login(email_addr, password)
-        mail.logout()
-        print("\033[92m✅ Verified!\033[0m")
-        return True
-    except imaplib.IMAP4.error as e:
-        print(f"\033[91m❌ Failed: {e}\033[0m")
-        return False
-    except Exception as e:
-        print(f"\033[91m❌ Error: {e}\033[0m")
-        return False
-
-def setup_email():
-    check_existing_account()
-    run_step(1, "Link Your Email Account", "Connects Phishing Guard to your inbox for real-time monitoring.")
+    email = input("\nEmail Address: ").strip()
+    print("\n[Action Required] I am opening your Google Security page.")
+    print("Create an 'App Password' named 'Phishing Guard' and copy the code.")
+    time.sleep(1)
+    webbrowser.open("https://myaccount.google.com/apppasswords", new=1)
     
     while True:
-        email_addr = input("\n\033[1mEnter your Email Address:\033[0m ").strip()
-        if "@" in email_addr and "." in email_addr:
-            break
-        print("\033[91m❌ Invalid email format. Please try again.\033[0m")
+        key = get_masked_input("\nPaste Security Key: ").strip().replace(" ", "")
+        if len(key) == 16:
+            success, msg = SetupEngine.verify_imap(email, key)
+            if success:
+                SetupEngine.save_config(email, key)
+                print("\033[92m✅ Verified!\033[0m")
+                break
+            else: print(f"\033[91m❌ Failed: {msg}\033[0m")
+        else: print(f"\033[93m⚠️  Must be 16 characters. Try again.\033[0m")
 
-    if "gmail.com" in email_addr.lower():
-        setup_gmail_guided(email_addr)
-    else:
-        setup_standard_imap(email_addr)
-    
-    # Update registry
-    try:
-        with open(REGISTRY_FILE, 'w') as f:
-            json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
-    except: pass
+    if input("\nEnable 24/7 background protection? (y/n): ").lower() == 'y':
+        print("\n\033[93m[System] Installing services...\033[0m")
+        success, msg = SetupEngine.install_services()
+        if success: print("\033[92m🚀 PROTECTION IS NOW ACTIVE!\033[0m")
+        else: print(f"\033[91m❌ Failed: {msg}\033[0m")
 
-def setup_gmail_guided(email_addr):
-    print("\n\033[94m[Gmail Guided Setup]\033[0m")
-    print("1. Browser opens to Google Security page.")
-    print("2. Create an 'App Password' named 'Phishing Guard'.")
-    print("3. Paste the 16-character code here.")
-    
-    if input("\nOpen browser now? (y/n): ").lower() != 'n':
-        webbrowser.open("https://myaccount.google.com/apppasswords", new=1)
-    
-    while True:
-        password = get_masked_input("\n\033[1mPaste Security Key here: \033[0m").strip().replace(" ", "")
-        
-        if len(password) != 16:
-            print(f"\033[91m❌ Invalid Key: Google Security Keys must be exactly 16 characters (you gave {len(password)}).\033[0m")
-            continue
-            
-        if verify_credentials(email_addr, password, "imap.gmail.com"):
-            _save_config({"auth_type": "standard", "server": "imap.gmail.com", "email": email_addr, "password": password})
-            break
-        else:
-            print("\033[93mPlease double-check your email and security key.\033[0m")
-
-def setup_standard_imap(email_addr):
-    print("\n\033[96m[Custom IMAP Setup]\033[0m")
-    server = input("IMAP Server (e.g. imap.mail.yahoo.com): ").strip()
-    
-    while True:
-        password = get_masked_input("\n\033[1mPassword: \033[0m").strip()
-        if not password:
-            print("\033[91m❌ Password cannot be empty.\033[0m")
-            continue
-            
-        if verify_credentials(email_addr, password, server):
-            _save_config({"auth_type": "standard", "server": server, "email": email_addr, "password": password})
-            break
-        else:
-            print("\033[93mConnection failed. Please check your credentials and server address.\033[0m")
-
-def _save_config(config):
-    with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
-    os.chmod(CONFIG_FILE, 0o600)
-    print(f"\n\033[92m✅ Success! Account linked and verified.\033[0m")
-
-def install_services():
-    run_step(2, "Activate 24/7 Protection", f"Installs Phishing Guard ({SUITE_TYPE}) as a silent background service.")
-    if input("\nEnable background protection? (y/n): ").lower() != 'y': return
-
-    user = getpass.getuser()
-    py = sys.executable
-    api_svc = f"phishing-api-{SUITE_TYPE}.service"
-    mon_svc = f"phishing-monitor-{SUITE_TYPE}.service"
-
-    api_content = f"""[Unit]
-Description=Phishing Guard API ({SUITE_TYPE})
-After=network.target
-[Service]
-ExecStart={py} {PROJECT_ROOT}/04_inference/api.py
-WorkingDirectory={PROJECT_ROOT}
-Restart=always
-User={user}
-[Install]
-WantedBy=multi-user.target"""
-
-    mon_content = f"""[Unit]
-Description=Phishing Guard Email Watchdog ({SUITE_TYPE})
-After=network.target {api_svc}
-[Service]
-ExecStart={py} {PROJECT_ROOT}/email_scanner.py --monitor --daemon
-WorkingDirectory={PROJECT_ROOT}
-Restart=always
-User={user}
-[Install]
-WantedBy=multi-user.target"""
-
-    try:
-        for name, content in [(api_svc, api_content), (mon_svc, mon_content)]:
-            with open(f"/tmp/{name}", "w") as f: f.write(content)
-            subprocess.run(["sudo", "cp", f"/tmp/{name}", "/etc/systemd/system/"], check=True)
-        
-        subprocess.run(["sudo", "systemctl", "daemon-reload"], check=True)
-        subprocess.run(["sudo", "systemctl", "enable", api_svc, mon_svc], check=True)
-        subprocess.run(["sudo", "systemctl", "start", api_svc, mon_svc], check=True)
-        print(f"\n\033[92m🚀 PROTECTION ACTIVE! Check alerts in your desktop notifications.\033[0m")
-    except Exception as e: print(f"\033[91m❌ Failed: {e}\033[0m")
-
-def main():
-    try:
-        print_banner()
-        check_system_readiness()
-        setup_email()
-        install_services()
-        print("\n\033[96m\033[1mOnboarding Complete. Goodbye!\033[0m")
-    except KeyboardInterrupt: print("\n\n\033[93mCancelled.\033[0m")
+# --- ENTRY POINT ---
 
 if __name__ == "__main__":
-    main()
+    # Check if we can run GUI (DISPLAY environment variable exists)
+    if os.environ.get('DISPLAY'):
+        try:
+            gui = ModernWizardGUI()
+            gui.run()
+        except Exception as e:
+            print(f"GUI Load failed, falling back to CLI. ({e})")
+            cli_wizard()
+    else:
+        cli_wizard()
