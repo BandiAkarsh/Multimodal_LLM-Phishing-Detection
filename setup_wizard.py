@@ -35,6 +35,8 @@ def get_masked_input(prompt):
             c = sys.stdin.read(1)
             if c in ('\r', '\n'):
                 break
+            if c == '\x03': # Ctrl+C
+                raise KeyboardInterrupt
             if c == '\x7f' or ord(c) == 127: # Backspace
                 if chars:
                     chars.pop()
