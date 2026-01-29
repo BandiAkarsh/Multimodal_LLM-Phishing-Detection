@@ -6,11 +6,6 @@ Phishing Guard Team
 This tool provides two modes of email protection:
 1. File Mode: Scan a single .eml file for phishing links.
 2. Monitor Mode: Background watchdog that monitors your IMAP inbox in real-time.
-
-Features:
-- Native Desktop Notifications for real-time threats.
-- Internet-Aware detection (Online Scaping + Offline ML Fallback).
-- Support for 4-category classification (Legit, Phish, AI-Gen, Toolkit).
 """
 
 import imaplib
@@ -100,44 +95,19 @@ def parse_email_content(msg):
         except: pass
     
     urls = list(set(extract_urls_from_text(body)))
-    # Filter tracking/unsubscribe links
     urls = [u for u in urls if not any(x in u.lower() for x in ['unsubscribe', 'mailto:', 'tel:'])]
     return urls
 
-# --- MONITOR MODE LOGIC ---
-
 def connect_imap(config):
-    """Connect to Gmail IMAP server using secure XOAUTH2 exclusively."""
+    """Connect to IMAP server using secure login."""
     try:
         imap_server = config.get("server", "imap.gmail.com")
         mail = imaplib.IMAP4_SSL(imap_server)
-        
-        # Handle Google OAuth2 (XOAUTH2)
-        import google.oauth2.credentials
-        import google.auth.transport.requests
-        
-        creds = google.oauth2.credentials.Credentials(
-            None,
-            refresh_token=config['refresh_token'],
-            client_id=config['client_id'],
-            client_secret=config['client_secret'],
-            token_uri=config['token_uri']
-        )
-        
-        # Refresh token to get access token
-        request = google.auth.transport.requests.Request()
-        creds.refresh(request)
-        
-        # Authenticate using XOAUTH2
-        auth_string = f"user={config['email']}\1auth=Bearer {creds.token}\1\1"
-        mail.authenticate('XOAUTH2', lambda x: auth_string)
-            
+        mail.login(config['email'], config['password'])
         return mail
     except Exception as e:
-        print(f"{Colors.RED}Authentication failed: {e}{Colors.END}")
-        print(f"{Colors.YELLOW}Please re-run setup_wizard.py to refresh your login.{Colors.END}")
+        print(f"{Colors.RED}Connection failed: {e}{Colors.END}")
         return None
-
 
 async def monitor_inbox(service, force_offline=False, daemon_mode=False):
     """Monitor IMAP inbox for new emails."""
@@ -149,7 +119,6 @@ async def monitor_inbox(service, force_offline=False, daemon_mode=False):
         return
 
     with open(CONFIG_FILE, 'r') as f: config = json.load(f)
-    
     monitor = ConnectivityMonitor(check_interval=60)
     last_id = 0
     
@@ -184,9 +153,6 @@ async def monitor_inbox(service, force_offline=False, daemon_mode=False):
                             res = await service.analyze_url_async(url, force_mllm=is_online)
                             if res['classification'] != 'legitimate':
                                 found_phish = True
-                                if not daemon_mode:
-                                    print(f"{Colors.RED}[THREAT]{Colors.END} {url[:50]}...")
-                        
                         if found_phish:
                             send_desktop_notification("⚠️ SECURITY ALERT", f"Phishing detected in: {subject}")
                 last_id = curr_max
@@ -196,8 +162,6 @@ async def monitor_inbox(service, force_offline=False, daemon_mode=False):
         except Exception as e:
             if not daemon_mode: print(f"Error: {e}")
             await asyncio.sleep(30)
-
-# --- FILE MODE LOGIC ---
 
 async def scan_file(service, file_path, is_online):
     """Scan a local .eml file."""
@@ -223,8 +187,6 @@ async def scan_file(service, file_path, is_online):
         if res['classification'] != 'legitimate':
             print(f"   ↳ {Colors.YELLOW}Reason:{Colors.END} {res['explanation']}")
 
-# --- MAIN ENTRY ---
-
 async def main():
     parser = argparse.ArgumentParser(description="Phishing Guard: Unified Email Scanner")
     parser.add_argument("file", nargs="?", help="Path to .eml file to scan")
@@ -233,8 +195,6 @@ async def main():
     parser.add_argument("--daemon", action="store_true", help="Run in background mode (silences output)")
     
     args = parser.parse_args()
-    
-    # Initialize Service
     service = PhishingDetectionService(load_mllm=False, load_ml_model=True)
     is_online = not args.offline and check_internet_connection()
     

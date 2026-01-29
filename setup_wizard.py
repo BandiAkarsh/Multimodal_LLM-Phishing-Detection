@@ -6,21 +6,47 @@ import getpass
 import subprocess
 import time
 import webbrowser
+import tty
+import termios
 
 # Identify which suite this is
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Check if we are in hub or main project
 if "lightweight" in CURRENT_DIR:
     SUITE_TYPE = "lightweight"
 elif "advanced_ai" in CURRENT_DIR:
     SUITE_TYPE = "advanced_ai"
 else:
-    SUITE_TYPE = "standard"
+    SUITE_TYPE = "dev"
 
 PROJECT_ROOT = CURRENT_DIR
 CONFIG_FILE = os.path.join(PROJECT_ROOT, "email_config.json")
-CREDS_FILE = os.path.join(PROJECT_ROOT, "credentials.json")
 REGISTRY_FILE = os.path.expanduser("~/.phishing_guard_registry.json")
+
+def get_masked_input(prompt):
+    """Read input and display asterisks instead of plain text."""
+    print(prompt, end='', flush=True)
+    chars = []
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        while True:
+            c = sys.stdin.read(1)
+            if c in ('\r', '\n'):
+                break
+            if c == '\x7f': # Backspace
+                if chars:
+                    chars.pop()
+                    sys.stdout.write('\b \b')
+                    sys.stdout.flush()
+            elif ord(c) >= 32: # Standard printable characters
+                chars.append(c)
+                sys.stdout.write('*')
+                sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    print()
+    return ''.join(chars)
 
 def print_banner():
     color = "\033[92m" if "lightweight" in SUITE_TYPE else "\033[95m"
@@ -33,7 +59,7 @@ def print_banner():
   ██║     ██║  ██║██║███████║██║  ██║██║██║ ╚████║╚██████╔╝
   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
                  [Phishing Guard Team]
-                 VERSION: {SUITE_TYPE.upper()} (Pure OAuth2)
+                 VERSION: {SUITE_TYPE.upper()}
 \033[0m""")
 
 def run_step(number, title, description):
@@ -43,13 +69,6 @@ def run_step(number, title, description):
 def check_system_readiness():
     run_step(0, "System Readiness Check", "Verifying hardware and installing necessary components.")
     
-    # Check for credentials.json
-    if not os.path.exists(CREDS_FILE):
-        print(f"\n\033[91m❌ ERROR: credentials.json not found in {PROJECT_ROOT}\033[0m")
-        print("To use 'Sign in with Google', you must first setup your Google Cloud Project.")
-        print("Please read 'CREDENTIALS_GUIDE.md' for instructions.")
-        sys.exit(1)
-
     # 1. GPU Check for AI version
     if SUITE_TYPE == "advanced_ai":
         try:
@@ -65,7 +84,7 @@ def check_system_readiness():
     req_file = os.path.join(PROJECT_ROOT, "requirements.txt")
     if os.path.exists(req_file):
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "-r", req_file, "google-auth-oauthlib", "google-auth-httplib2"], check=True)
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", req_file, "plyer", "beautifulsoup4"], check=True)
             print("\033[92m✅ Dependencies verified.\033[0m")
         except:
             print("\033[91m❌ Failed to install dependencies.\033[0m")
@@ -94,48 +113,46 @@ def check_existing_account():
 
 def setup_email():
     check_existing_account()
-    run_step(1, "Link Your Google Account", "Securely connect Phishing Guard using standard Google Login.")
+    run_step(1, "Link Your Email Account", "Connects Phishing Guard to your inbox for real-time monitoring.")
     
-    from google_auth_oauthlib.flow import InstalledAppFlow
-    SCOPES = ['https://mail.google.com/']
+    email_addr = input("\n\033[1mEnter your Gmail Address:\033[0m ").strip()
     
+    if "gmail.com" in email_addr.lower():
+        setup_gmail_guided(email_addr)
+    else:
+        setup_standard_imap(email_addr)
+    
+    # Update registry
     try:
-        flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
-        creds = flow.run_local_server(
-            port=0, 
-            authorization_prompt_message='\033[94mPlease log in through the browser window that just opened...\033[0m',
-            success_message='\033[92m✅ Success! Your account is now linked securely.\033[0m'
-        )
-        
-        email_addr = input("\n\033[1mConfirm your Gmail Address:\033[0m ").strip()
-        
-        config = {
-            "auth_type": "oauth2",
-            "email": email_addr,
-            "refresh_token": creds.refresh_token,
-            "token_uri": creds.token_uri,
-            "client_id": creds.client_id,
-            "client_secret": creds.client_secret,
-            "server": "imap.gmail.com"
-        }
-        
-        with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
-        os.chmod(CONFIG_FILE, 0o600)
-        
-        # Update registry
-        try:
-            with open(REGISTRY_FILE, 'w') as f:
-                json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
-        except: pass
-        
-        print(f"\n\033[92m✅ Google Account '{email_addr}' linked successfully!\033[0m")
-        
-    except Exception as e:
-        print(f"\n\033[91m❌ OAuth Flow Failed: {e}\033[0m")
-        sys.exit(1)
+        with open(REGISTRY_FILE, 'w') as f:
+            json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
+    except: pass
+
+def setup_gmail_guided(email_addr):
+    print("\n\033[94m[Gmail Guided Setup]\033[0m")
+    print("1. Browser opens to Google Security page.")
+    print("2. Create an 'App Password' named 'Phishing Guard'.")
+    print("3. Paste the 16-character code here (will show as asterisks).")
+    
+    if input("\nOpen browser now? (y/n): ").lower() != 'n':
+        webbrowser.open("https://myaccount.google.com/apppasswords")
+    
+    password = get_masked_input("\n\033[1mPaste Security Key here: \033[0m").strip().replace(" ", "")
+    _save_config({"auth_type": "standard", "server": "imap.gmail.com", "email": email_addr, "password": password})
+
+def setup_standard_imap(email_addr):
+    print("\n\033[96m[Custom IMAP Setup]\033[0m")
+    server = input("IMAP Server (e.g. imap.mail.yahoo.com): ").strip()
+    password = get_masked_input("\n\033[1mPassword: \033[0m").strip()
+    _save_config({"auth_type": "standard", "server": server, "email": email_addr, "password": password})
+
+def _save_config(config):
+    with open(CONFIG_FILE, 'w') as f: json.dump(config, f)
+    os.chmod(CONFIG_FILE, 0o600)
+    print(f"\n\033[92m✅ Success! Account linked.\033[0m")
 
 def install_services():
-    run_step(2, "Activate 24/7 Protection", "Installs Phishing Guard as a silent background service.")
+    run_step(2, "Activate 24/7 Protection", f"Installs Phishing Guard ({SUITE_TYPE}) as a silent background service.")
     if input("\nEnable background protection? (y/n): ").lower() != 'y': return
 
     user = getpass.getuser()
@@ -182,7 +199,7 @@ def main():
         check_system_readiness()
         setup_email()
         install_services()
-        print("\n\033[96m\033[1mSetup Complete! Your inbox is now being guarded.\033[0m")
+        print("\n\033[96m\033[1mOnboarding Complete. Goodbye!\033[0m")
     except KeyboardInterrupt: print("\n\n\033[93mCancelled.\033[0m")
 
 if __name__ == "__main__":
