@@ -156,7 +156,7 @@ def setup_gmail_guided(email_addr):
     print("3. Paste the 16-character code here.")
     
     if input("\nOpen browser now? (y/n): ").lower() != 'n':
-        webbrowser.open("https://myaccount.google.com/apppasswords")
+        webbrowser.open("https://myaccount.google.com/apppasswords", new=1)
     
     while True:
         password = get_masked_input("\n\033[1mPaste Security Key here: \033[0m").strip().replace(" ", "")
