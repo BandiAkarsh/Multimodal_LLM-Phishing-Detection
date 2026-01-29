@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Phishing Guard: Professional Onboarding Suite
-Version: 3.0 (Unified CLI & GUI)
+Version: 4.0 (Unified CLI & GUI with System Auth Integration)
 Branding: Phishing Guard Team
 """
 
@@ -67,27 +67,48 @@ class SetupEngine:
         except: pass
 
     @staticmethod
-    def install_services():
-        """Logic to install systemd services."""
+    def run_installer_script(progress_callback=None):
+        """Logic to install systemd services using a single pkexec call."""
         user = getpass.getuser()
         py = sys.executable
         api_svc = f"phishing-api-{SUITE_TYPE}.service"
         mon_svc = f"phishing-monitor-{SUITE_TYPE}.service"
 
+        # Service definitions
         api_content = f"[Unit]\nDescription=Phishing Guard API ({SUITE_TYPE})\nAfter=network.target\n[Service]\nExecStart={py} {PROJECT_ROOT}/04_inference/api.py\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n[Install]\nWantedBy=multi-user.target"
         mon_content = f"[Unit]\nDescription=Phishing Guard Email Watchdog ({SUITE_TYPE})\nAfter=network.target {api_svc}\n[Service]\nExecStart={py} {PROJECT_ROOT}/email_scanner.py --monitor --daemon\nWorkingDirectory={PROJECT_ROOT}\nRestart=always\nUser={user}\n[Install]\nWantedBy=multi-user.target"
 
+        # Create temporary installer script
+        installer_path = "/tmp/phishing_guard_installer.sh"
+        with open(installer_path, "w") as f:
+            f.write(f"""#!/bin/bash
+echo "Installing service files..."
+echo '{api_content}' > /etc/systemd/system/{api_svc}
+echo '{mon_content}' > /etc/systemd/system/{mon_svc}
+echo "Reloading systemd..."
+systemctl daemon-reload
+echo "Enabling services..."
+systemctl enable {api_svc} {mon_svc}
+echo "Starting services..."
+systemctl restart {api_svc} {mon_svc}
+echo "DONE"
+""")
+        os.chmod(installer_path, 0o755)
+
+        if progress_callback: progress_callback("Requesting System Permission...")
+        
         try:
-            for name, content in [(api_svc, api_content), (mon_svc, mon_content)]:
-                with open(f"/tmp/{name}", "w") as f: f.write(content)
-                subprocess.run(["sudo", "cp", f"/tmp/{name}", "/etc/systemd/system/"], check=True)
-            
-            subprocess.run(["sudo", "systemctl", "daemon-reload"], check=True)
-            subprocess.run(["sudo", "systemctl", "enable", api_svc, mon_svc], check=True)
-            subprocess.run(["sudo", "systemctl", "start", api_svc, mon_svc], check=True)
-            return True, "Protection Active"
+            # Use pkexec for professional GUI authentication
+            result = subprocess.run(["pkexec", "/bin/bash", installer_path], 
+                                  capture_output=True, text=True, check=True)
+            return True, "Installation Successful"
+        except subprocess.CalledProcessError as e:
+            return False, f"Auth failed or installer error: {e.stderr}"
         except Exception as e:
             return False, str(e)
+        finally:
+            if os.path.exists(installer_path):
+                os.remove(installer_path)
 
 # --- POLISHED GUI INTERFACE ---
 
@@ -95,17 +116,17 @@ class ModernWizardGUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Phishing Guard Onboarding")
-        self.root.geometry("500x600")
+        self.root.geometry("500x650")
         self.root.configure(bg="#1e1e1e")
         self.style = ttk.Style()
         self.style.theme_use('clam')
         
         # Custom Styling
         self.style.configure("TLabel", background="#1e1e1e", foreground="#ffffff", font=("Helvetica", 10))
-        self.style.configure("Header.TLabel", font=("Helvetica", 16, "bold"), foreground="#00ffcc")
-        self.style.configure("Action.TButton", font=("Helvetica", 10, "bold"), padding=10)
+        self.style.configure("Header.TLabel", font=("Helvetica", 18, "bold"), foreground="#00ffcc")
+        self.style.configure("TButton", font=("Helvetica", 10, "bold"), padding=10)
+        self.style.configure("Horizontal.TProgressbar", thickness=10, background="#00ffcc", troughcolor="#2d2d2d")
         
-        self.current_step = 0
         self.setup_ui()
 
     def setup_ui(self):
@@ -113,12 +134,11 @@ class ModernWizardGUI:
         self.main_frame.pack(fill="both", expand=True)
 
         self.header = ttk.Label(self.main_frame, text="PHISHING GUARD", style="Header.TLabel")
-        self.header.pack(pady=(0, 10))
+        self.header.pack(pady=(0, 5))
         
-        self.sub_header = ttk.Label(self.main_frame, text=f"SETTING UP: {SUITE_TYPE.upper()} SUITE")
+        self.sub_header = ttk.Label(self.main_frame, text=f"UNIFIED SETUP: {SUITE_TYPE.upper()}", foreground="#888888")
         self.sub_header.pack(pady=(0, 30))
 
-        # Content Area
         self.content_frame = tk.Frame(self.main_frame, bg="#1e1e1e")
         self.content_frame.pack(fill="both", expand=True)
         
@@ -127,30 +147,32 @@ class ModernWizardGUI:
     def show_step_1(self):
         self.clear_content()
         ttk.Label(self.content_frame, text="Step 1: Link Your Email", font=("Helvetica", 12, "bold")).pack(pady=10)
-        ttk.Label(self.content_frame, text="Enter the Gmail account you want to protect:").pack(pady=5)
+        ttk.Label(self.content_frame, text="Enter the Gmail account you want to protect:", wraplength=400).pack(pady=5)
         
-        self.email_entry = tk.Entry(self.content_frame, width=40, bg="#2d2d2d", fg="white", insertbackground="white", font=("Helvetica", 11))
-        self.email_entry.pack(pady=10)
+        self.email_entry = tk.Entry(self.content_frame, width=35, bg="#2d2d2d", fg="white", 
+                                   insertbackground="white", font=("Helvetica", 12), relief="flat", highlightthickness=1)
+        self.email_entry.pack(pady=15, ipady=5)
         self.email_entry.insert(0, "")
 
-        btn = ttk.Button(self.content_frame, text="Next Step →", command=self.show_step_2)
-        btn.pack(pady=20)
+        self.next_btn = ttk.Button(self.content_frame, text="Next Step →", command=self.show_step_2)
+        self.next_btn.pack(pady=20)
 
     def show_step_2(self):
-        self.email = self.email_entry.get()
-        if "@" not in self.email:
+        self.email = self.email_entry.get().strip()
+        if "@" not in self.email or "." not in self.email:
             messagebox.showerror("Error", "Please enter a valid email address.")
             return
 
         self.clear_content()
         ttk.Label(self.content_frame, text="Step 2: Generate Security Key", font=("Helvetica", 12, "bold")).pack(pady=10)
-        ttk.Label(self.content_frame, text="I will open Google Security settings. Create an\n'App Password' named 'Phishing Guard'.", justify="center").pack(pady=5)
+        ttk.Label(self.content_frame, text="I will open Google Security settings. Create an\n'App Password' named 'Phishing Guard'.", justify="center", wraplength=400).pack(pady=5)
         
-        ttk.Button(self.content_frame, text="Open Browser", command=lambda: webbrowser.open("https://myaccount.google.com/apppasswords", new=1)).pack(pady=15)
+        ttk.Button(self.content_frame, text="🌐 Open Security Page", command=lambda: webbrowser.open("https://myaccount.google.com/apppasswords", new=1)).pack(pady=15)
         
         ttk.Label(self.content_frame, text="Paste the 16-character code below:").pack(pady=5)
-        self.key_entry = tk.Entry(self.content_frame, width=40, show="*", bg="#2d2d2d", fg="#00ffcc", font=("Helvetica", 12, "bold"), justify="center")
-        self.key_entry.pack(pady=10)
+        self.key_entry = tk.Entry(self.content_frame, width=35, show="*", bg="#2d2d2d", fg="#00ffcc", 
+                                 font=("Helvetica", 14, "bold"), justify="center", relief="flat", highlightthickness=1)
+        self.key_entry.pack(pady=10, ipady=8)
 
         self.verify_btn = ttk.Button(self.content_frame, text="Verify & Connect", command=self.run_verification)
         self.verify_btn.pack(pady=20)
@@ -161,7 +183,7 @@ class ModernWizardGUI:
             messagebox.showerror("Error", "The key must be exactly 16 characters.")
             return
 
-        self.verify_btn.config(state="disabled", text="Verifying...")
+        self.verify_btn.config(state="disabled", text="Connecting to Google...")
         
         def task():
             success, msg = SetupEngine.verify_imap(self.email, key)
@@ -175,31 +197,59 @@ class ModernWizardGUI:
 
     def verification_failed(self, msg):
         self.verify_btn.config(state="normal", text="Verify & Connect")
-        messagebox.showerror("Connection Failed", f"Google rejected the key.\nError: {msg}")
+        messagebox.showerror("Connection Failed", f"Google rejected the key.\n\nPossible reasons:\n- 2-Step Verification is off\n- Typing error\n- Key was revoked\n\nOriginal Error: {msg}")
 
     def show_step_3(self):
         self.clear_content()
         ttk.Label(self.content_frame, text="Step 3: Activate Protection", font=("Helvetica", 12, "bold")).pack(pady=10)
-        ttk.Label(self.content_frame, text="Would you like to turn on 24/7 background\nprotection for this system?", justify="center").pack(pady=10)
+        ttk.Label(self.content_frame, text="Link verified! Now, let's turn on 24/7 background\nprotection for this system.", justify="center").pack(pady=10)
         
+        self.progress_label = ttk.Label(self.content_frame, text="Ready to install.", foreground="#888888")
+        self.progress_label.pack(pady=5)
+        
+        self.progress_bar = ttk.Progressbar(self.content_frame, orient="horizontal", length=300, mode="determinate")
+        self.progress_bar.pack(pady=10)
+
         self.install_btn = ttk.Button(self.content_frame, text="⚡ Enable Now", command=self.run_install)
         self.install_btn.pack(pady=10)
         
-        ttk.Button(self.content_frame, text="Skip", command=self.finish).pack(pady=5)
+        self.skip_btn = ttk.Button(self.content_frame, text="Skip for Now", command=self.finish)
+        self.skip_btn.pack(pady=5)
+
+    def update_progress(self, text, value=None):
+        self.progress_label.config(text=text)
+        if value is not None:
+            self.progress_bar["value"] = value
+        self.root.update_idletasks()
 
     def run_install(self):
-        self.install_btn.config(state="disabled", text="Installing...")
-        success, msg = SetupEngine.install_services()
-        if success:
-            messagebox.showinfo("Success", "Phishing Guard is now active and guarding your inbox!")
-            self.finish()
-        else:
-            messagebox.showerror("Failed", f"Service installation failed: {msg}")
-            self.install_btn.config(state="normal", text="Try Again")
+        self.install_btn.config(state="disabled")
+        self.skip_btn.config(state="disabled")
+        self.update_progress("Initializing...", 10)
+        
+        def task():
+            self.root.after(0, lambda: self.update_progress("Authentication required...", 30))
+            success, msg = SetupEngine.run_installer_script(progress_callback=lambda t: self.root.after(0, lambda: self.update_progress(t)))
+            
+            if success:
+                self.root.after(0, lambda: self.update_progress("Done!", 100))
+                self.root.after(500, self.installation_complete)
+            else:
+                self.root.after(0, lambda: self.installation_failed(msg))
+
+        Thread(target=task).start()
+
+    def installation_complete(self):
+        messagebox.showinfo("Success", "Phishing Guard is now active and guarding your inbox!")
+        self.finish()
+
+    def installation_failed(self, msg):
+        self.install_btn.config(state="normal", text="Retry Installation")
+        self.skip_btn.config(state="normal")
+        messagebox.showerror("Failed", f"System authentication failed or timed out.\n\nError: {msg}")
 
     def finish(self):
         self.root.destroy()
-        print("\nGUI Setup Complete.")
 
     def clear_content(self):
         for widget in self.content_frame.winfo_children():
@@ -210,7 +260,7 @@ class ModernWizardGUI:
 
 # --- POLISHED CLI INTERFACE ---
 
-def get_masked_input(prompt):
+def cli_masked_input(prompt):
     print(prompt, end='', flush=True)
     chars = []
     fd = sys.stdin.fileno()
@@ -223,51 +273,44 @@ def get_masked_input(prompt):
             if c == '\x03': raise KeyboardInterrupt
             if c in ('\x7f', '\x08'):
                 if chars:
-                    chars.pop()
-                    sys.stdout.write('\b \b'); sys.stdout.flush()
+                    chars.pop(); sys.stdout.write('\b \b'); sys.stdout.flush()
             elif ord(c) >= 32:
-                chars.append(c)
-                sys.stdout.write('*'); sys.stdout.flush()
+                chars.append(c); sys.stdout.write('*'); sys.stdout.flush()
     finally: termios.tcsetattr(fd, termios.TCSADRAIN, old)
     print()
     return ''.join(chars)
 
 def cli_wizard():
     print("\n\033[96m\033[1m--- PHISHING GUARD ONBOARDING ---\033[0m")
-    
     email = input("\nEmail Address: ").strip()
-    print("\n[Action Required] I am opening your Google Security page.")
-    print("Create an 'App Password' named 'Phishing Guard' and copy the code.")
-    time.sleep(1)
+    print("\n[Action] Opening browser for Security Key...")
     webbrowser.open("https://myaccount.google.com/apppasswords", new=1)
     
     while True:
-        key = get_masked_input("\nPaste Security Key: ").strip().replace(" ", "")
+        key = cli_masked_input("\nPaste Security Key: ").strip().replace(" ", "")
         if len(key) == 16:
+            print("Verifying...")
             success, msg = SetupEngine.verify_imap(email, key)
             if success:
-                SetupEngine.save_config(email, key)
-                print("\033[92m✅ Verified!\033[0m")
-                break
+                SetupEngine.save_config(email, key); print("\033[92m✅ Verified!\033[0m"); break
             else: print(f"\033[91m❌ Failed: {msg}\033[0m")
-        else: print(f"\033[93m⚠️  Must be 16 characters. Try again.\033[0m")
+        else: print(f"\033[93m⚠️  Must be 16 characters.\033[0m")
 
     if input("\nEnable 24/7 background protection? (y/n): ").lower() == 'y':
-        print("\n\033[93m[System] Installing services...\033[0m")
-        success, msg = SetupEngine.install_services()
+        print("\n\033[93m[System] Requesting authentication...\033[0m")
+        success, msg = SetupEngine.run_installer_script()
         if success: print("\033[92m🚀 PROTECTION IS NOW ACTIVE!\033[0m")
         else: print(f"\033[91m❌ Failed: {msg}\033[0m")
 
 # --- ENTRY POINT ---
 
 if __name__ == "__main__":
-    # Check if we can run GUI (DISPLAY environment variable exists)
     if os.environ.get('DISPLAY'):
         try:
             gui = ModernWizardGUI()
             gui.run()
         except Exception as e:
-            print(f"GUI Load failed, falling back to CLI. ({e})")
+            print(f"GUI failed, falling back to CLI. ({e})")
             cli_wizard()
     else:
         cli_wizard()
