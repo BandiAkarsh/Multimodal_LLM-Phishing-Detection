@@ -66,6 +66,10 @@ from auth import (
     rate_limit_check
 )
 
+# Import security validation
+sys.path.append(os.path.join(project_root, '05_utils'))
+from security_validator import validate_url_for_analysis, URLSecurityValidator
+
 # Import connectivity checker
 try:
     sys.path.append(os.path.join(project_root, '05_utils'))
@@ -308,6 +312,14 @@ async def analyze_url(
     
     Rate limit: 100 requests per minute per user.
     """
+    # Validate URL for security (SSRF protection)
+    is_valid, error_msg = validate_url_for_analysis(request.url)
+    if not is_valid:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"URL validation failed: {error_msg}"
+        )
+    
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
@@ -351,6 +363,15 @@ async def batch_analyze_urls(
     
     Rate limit: 100 requests per minute per user.
     """
+    # Validate all URLs for security
+    for url in request.urls:
+        is_valid, error_msg = validate_url_for_analysis(url)
+        if not is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"URL validation failed for {url}: {error_msg}"
+            )
+    
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
