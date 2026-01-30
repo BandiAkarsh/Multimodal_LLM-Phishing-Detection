@@ -33,6 +33,15 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, '05_utils'))
 
 from service import PhishingDetectionService
 
+# Import secure configuration
+try:
+    from secure_config import SecureConfigManager
+    secure_config = SecureConfigManager()
+    USE_SECURE_CONFIG = True
+except ImportError:
+    USE_SECURE_CONFIG = False
+    print("[Warning] Secure config not available, falling back to legacy storage")
+
 # Import connectivity checker
 try:
     from connectivity import check_internet_connection, ConnectivityMonitor
@@ -42,6 +51,25 @@ except ImportError:
         def __init__(self, check_interval=30): self.is_online = True
 
 CONFIG_FILE = os.path.join(PROJECT_ROOT, "email_config.json")
+
+def load_email_config():
+    """Load email configuration (secure or legacy)."""
+    if USE_SECURE_CONFIG and secure_config.config_exists():
+        try:
+            return secure_config.get_config()
+        except Exception as e:
+            print(f"[Error] Failed to load secure config: {e}")
+            # Fall back to legacy
+    
+    # Legacy plaintext fallback
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[Error] Failed to load config: {e}")
+    
+    return None
 
 class Colors:
     RED = '\033[91m'
@@ -122,11 +150,11 @@ async def monitor_inbox(service, force_offline=False, daemon_mode=False):
     if not daemon_mode:
         print(f"{Colors.CYAN}{Colors.BOLD}\n📧 REAL-TIME EMAIL MONITOR ACTIVE{Colors.END}")
     
-    if not os.path.exists(CONFIG_FILE):
+    # Load secure configuration
+    config = load_email_config()
+    if not config:
         print(f"{Colors.RED}No config found. Run setup_wizard.py first.{Colors.END}")
         return
-
-    with open(CONFIG_FILE, 'r') as f: config = json.load(f)
     monitor = ConnectivityMonitor(check_interval=60)
     last_id = 0
     

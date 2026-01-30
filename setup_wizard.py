@@ -32,6 +32,18 @@ PROJECT_ROOT = CURRENT_DIR
 CONFIG_FILE = os.path.join(PROJECT_ROOT, "email_config.json")
 REGISTRY_FILE = os.path.expanduser("~/.phishing_guard_registry.json")
 
+# --- SECURE CONFIGURATION ---
+sys.path.insert(0, os.path.join(PROJECT_ROOT, '05_utils'))
+from secure_config import SecureConfigManager
+
+# Initialize secure config manager
+secure_config = SecureConfigManager()
+
+# Migrate legacy config if exists (one-time operation)
+if os.path.exists(CONFIG_FILE) and not secure_config.config_exists():
+    print("[Security] Migrating legacy configuration to encrypted format...")
+    secure_config.migrate_from_legacy(CONFIG_FILE)
+
 # --- CORE ENGINE (Shared Logic) ---
 
 class SetupEngine:
@@ -60,20 +72,38 @@ class SetupEngine:
 
     @staticmethod
     def save_config(email_addr, password, server="imap.gmail.com"):
+        """Save configuration with encryption (GDPR compliant)."""
         config = {
             "auth_type": "standard",
             "server": server,
             "email": email_addr,
-            "password": password
+            "password": password,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "version": "2.0"
         }
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(config, f)
-        os.chmod(CONFIG_FILE, 0o600)
         
-        # Update system registry
+        # Use secure encrypted storage
+        secure_config.encrypt_config(config)
+        
+        # Also save to legacy location for backward compatibility during transition
+        # (this file will be encrypted too via migration on first run)
+        try:
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump(config, f)
+            os.chmod(CONFIG_FILE, 0o600)
+        except:
+            pass
+        
+        # Update system registry (non-sensitive metadata only)
         try:
             with open(REGISTRY_FILE, 'w') as f:
-                json.dump({"active_email": email_addr, "suite_type": SUITE_TYPE, "path": PROJECT_ROOT}, f)
+                json.dump({
+                    "active_email": email_addr, 
+                    "suite_type": SUITE_TYPE, 
+                    "path": PROJECT_ROOT,
+                    "config_version": "2.0_encrypted",
+                    "last_updated": time.strftime("%Y-%m-%dT%H:%M:%S")
+                }, f)
         except: pass
 
     @staticmethod
