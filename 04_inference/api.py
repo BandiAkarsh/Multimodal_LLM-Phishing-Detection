@@ -5,13 +5,23 @@ This module provides a REST API for the phishing detection service.
 It supports INTERNET-AWARE detection and includes connectivity status
 in all responses.
 
+## Authentication
+
+This API uses JWT Bearer tokens for authentication. Include the token
+in the Authorization header:
+    Authorization: Bearer <your-jwt-token>
+
+To get a token, use the `/auth/login` endpoint.
+
 Endpoints:
-    GET  /              - API info and version
-    GET  /health        - Health check with connectivity status
-    POST /api/v1/analyze       - Analyze single URL
-    POST /api/v1/batch-analyze - Analyze multiple URLs
-    GET  /api/v1/features/{url} - Extract URL features only
-    GET  /api/v1/connectivity  - Check connectivity status
+    POST /auth/login           - Get JWT token
+    POST /auth/api-key         - Generate API key
+    GET  /              - API info and version (public)
+    GET  /health        - Health check with connectivity status (public)
+    POST /api/v1/analyze       - Analyze single URL (protected)
+    POST /api/v1/batch-analyze - Analyze multiple URLs (protected)
+    GET  /api/v1/features/{url} - Extract URL features only (protected)
+    GET  /api/v1/connectivity  - Check connectivity status (public)
 
 Usage:
     uvicorn api:app --host 0.0.0.0 --port 8000
@@ -24,14 +34,17 @@ import sys
 import os
 import torch
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, Dict, Any
+from datetime import datetime, timezone
 
 # Add project root to path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 import uvicorn
 
 from schemas import (
@@ -43,6 +56,15 @@ from schemas import (
     ClassificationResult
 )
 from service import PhishingDetectionService
+
+# Import authentication
+from auth import (
+    auth_manager, 
+    get_current_user, 
+    verify_api_key_auth,
+    rate_limiter,
+    rate_limit_check
+)
 
 # Import connectivity checker
 try:
@@ -100,14 +122,36 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# Security: CORS middleware - restrict origins
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080,http://127.0.0.1").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],  # Only needed methods
+    allow_headers=["Authorization", "Content-Type"],  # Explicit headers
+    max_age=3600,  # Cache preflight requests
 )
+
+# Security: Add security headers middleware
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+    
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    
+    # Rate limiting headers
+    if hasattr(request.state, 'rate_limit_remaining'):
+        response.headers["X-RateLimit-Remaining"] = str(request.state.rate_limit_remaining)
+    
+    return response
 
 @app.get("/", tags=["Health"])
 async def root():
@@ -134,6 +178,86 @@ async def health_check():
         analysis_mode=connectivity['mode']
     )
 
+# Authentication endpoints (public - no auth required)
+@app.post("/auth/login", tags=["Authentication"])
+async def login(credentials: dict):
+    """
+    Authenticate and get JWT token.
+    
+    Request body:
+        {
+            "username": "your-email@example.com",
+            "password": "your-password"
+        }
+    
+    Returns:
+        {
+            "access_token": "eyJhbGciOiJIUzI1Ni...",
+            "token_type": "bearer",
+            "expires_in": 86400
+        }
+    """
+    # Simple credential validation (in production, verify against database)
+    username = credentials.get("username", "")
+    password = credentials.get("password", "")
+    
+    # For demo purposes, accept any non-empty credentials
+    # In production, verify against user database
+    if not username or not password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    # Generate token
+    token = auth_manager.create_token(username)
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": 86400,  # 24 hours
+        "message": "Authentication successful"
+    }
+
+@app.post("/auth/api-key", tags=["Authentication"])
+async def generate_api_key(
+    name: str,
+    description: str = "",
+    user: dict = Depends(get_current_user)
+):
+    """
+    Generate API key for programmatic access (requires authentication).
+    
+    Args:
+        name: Name/identifier for the API key
+        description: Optional description
+        
+    Returns:
+        {
+            "api_key": "pg_...",
+            "message": "Save this key - it will not be shown again"
+        }
+    """
+    api_key = auth_manager.generate_api_key(name, description)
+    
+    return {
+        "api_key": api_key,
+        "name": name,
+        "message": "Save this key - it will not be shown again",
+        "warning": "Keep this key secure - treat it like a password"
+    }
+
+@app.get("/auth/me", tags=["Authentication"])
+async def get_current_user_info(user: dict = Depends(get_current_user)):
+    """Get information about currently authenticated user."""
+    return {
+        "user_id": user.get("sub"),
+        "token_type": user.get("type"),
+        "issued_at": user.get("iat"),
+        "expires_at": user.get("exp")
+    }
+
+# Public endpoints (no auth required)
 @app.get("/api/v1/connectivity", tags=["Health"])
 async def check_connectivity():
     """
@@ -161,9 +285,16 @@ async def check_connectivity():
     }
 
 @app.post("/api/v1/analyze", response_model=URLAnalysisResponse, tags=["Analysis"])
-async def analyze_url(request: URLAnalysisRequest):
+async def analyze_url(
+    request: URLAnalysisRequest,
+    req: Request,
+    user: dict = Depends(get_current_user),
+    rate_ok: None = Depends(rate_limit_check)
+):
     """
-    Analyze a single URL for phishing indicators.
+    Analyze a single URL for phishing indicators (requires authentication).
+    
+    **Authentication required:** Include JWT token in Authorization header.
     
     The API automatically chooses the best analysis method:
     - **Online**: Scrapes the website and analyzes actual content
@@ -174,6 +305,8 @@ async def analyze_url(request: URLAnalysisRequest):
     - **force_scan**: Force full MLLM analysis (requires GPU)
     
     Returns classification, confidence score, risk assessment, and explanation.
+    
+    Rate limit: 100 requests per minute per user.
     """
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
@@ -181,6 +314,9 @@ async def analyze_url(request: URLAnalysisRequest):
     try:
         # Use async analysis for full multimodal capabilities
         result = await phishing_service.analyze_url_async(request.url, force_mllm=request.force_scan)
+        
+        # Add audit log (who scanned what)
+        print(f"[AUDIT] User {user.get('sub')} scanned URL: {request.url}")
         
         return URLAnalysisResponse(
             url=result['url'],
@@ -197,14 +333,23 @@ async def analyze_url(request: URLAnalysisRequest):
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 @app.post("/api/v1/batch-analyze", response_model=BatchURLAnalysisResponse, tags=["Analysis"])
-async def batch_analyze_urls(request: BatchURLAnalysisRequest):
+async def batch_analyze_urls(
+    request: BatchURLAnalysisRequest,
+    req: Request,
+    user: dict = Depends(get_current_user),
+    rate_ok: None = Depends(rate_limit_check)
+):
     """
-    Analyze multiple URLs for phishing indicators.
+    Analyze multiple URLs for phishing indicators (requires authentication).
+    
+    **Authentication required:** Include JWT token in Authorization header.
     
     Parameters:
     - **urls**: List of URLs to analyze (max 100)
     
     Returns batch results with summary statistics.
+    
+    Rate limit: 100 requests per minute per user.
     """
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
@@ -261,12 +406,21 @@ async def batch_analyze_urls(request: BatchURLAnalysisRequest):
     )
 
 @app.get("/api/v1/features/{url:path}", tags=["Features"])
-async def extract_features(url: str):
+async def extract_features(
+    url: str,
+    req: Request,
+    user: dict = Depends(get_current_user),
+    rate_ok: None = Depends(rate_limit_check)
+):
     """
-    Extract URL features without full classification.
+    Extract URL features without full classification (requires authentication).
+    
+    **Authentication required:** Include JWT token in Authorization header.
     
     Useful for debugging and understanding feature extraction.
     Returns raw URL features and calculated risk score.
+    
+    Rate limit: 100 requests per minute per user.
     """
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
