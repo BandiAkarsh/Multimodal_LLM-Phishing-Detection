@@ -104,15 +104,35 @@ class PhishingDetectionService:
         else:
             print("Internet connection: OFFLINE - Limited to LEGITIMATE/PHISHING classification")
         
-        # Load ML classifier
+        # Load ML classifier (with MLflow support)
         if load_ml_model:
             try:
-                model_dir = os.path.join(project_root, '02_models')
-                self.ml_model = joblib.load(os.path.join(model_dir, 'phishing_classifier.joblib'))
-                self.ml_scaler = joblib.load(os.path.join(model_dir, 'feature_scaler.joblib'))
-                self.ml_feature_cols = joblib.load(os.path.join(model_dir, 'feature_columns.joblib'))
+                # Try MLflow first
+                try:
+                    sys.path.insert(0, os.path.join(project_root, '03_training'))
+                    from model_manager import ModelManager
+                    
+                    model_manager = ModelManager()
+                    self.ml_model = model_manager.load_model("phishing_classifier")
+                    print("✓ ML model loaded from MLflow registry")
+                    
+                    # Load scaler and columns from joblib (not versioned in MLflow)
+                    model_dir = os.path.join(project_root, '02_models')
+                    self.ml_scaler = joblib.load(os.path.join(model_dir, 'feature_scaler.joblib'))
+                    self.ml_feature_cols = joblib.load(os.path.join(model_dir, 'feature_columns.joblib'))
+                    
+                except Exception as mlflow_error:
+                    print(f"Note: MLflow loading failed ({mlflow_error}), falling back to joblib...")
+                    
+                    # Fallback to joblib
+                    model_dir = os.path.join(project_root, '02_models')
+                    self.ml_model = joblib.load(os.path.join(model_dir, 'phishing_classifier.joblib'))
+                    self.ml_scaler = joblib.load(os.path.join(model_dir, 'feature_scaler.joblib'))
+                    self.ml_feature_cols = joblib.load(os.path.join(model_dir, 'feature_columns.joblib'))
+                    print("✓ ML model loaded from joblib (fallback)")
+                
                 self.ml_model_loaded = True
-                print("ML classifier loaded successfully!")
+                
             except Exception as e:
                 print(f"Warning: Could not load ML model: {e}")
                 self.ml_model_loaded = False
