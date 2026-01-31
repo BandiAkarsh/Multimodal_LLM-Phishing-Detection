@@ -1,7 +1,7 @@
 {
-  "name": "phishing-guard-gui",
-  "private": true,
+  "name": "phishing-guard",
   "version": "2.0.0",
+  "description": "AI-powered phishing detection - Standalone Desktop App",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.5.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
@@ -22,7 +23,6 @@
     "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react": "^4.0.3",
     "typescript": "^5.0.2",
-    "vite": "^4.4.4",
-    "@tauri-apps/cli": "^1.5.0"
+    "vite": "^4.4.4"
   }
 }

@@ -1,12 +1,12 @@
-// Prevents additional console window on Windows in release
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem};
 use serde::{Deserialize, Serialize};
+use std::process::Command;
+use std::sync::Mutex;
+use tauri::{Manager, State};
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct ScanResult {
     url: String,
     classification: String,
@@ -15,180 +15,143 @@ struct ScanResult {
     explanation: String,
 }
 
-#[derive(Serialize, Deserialize)]
-struct ApiResponse {
-    url: String,
-    classification: String,
-    confidence: f64,
-    risk_score: i32,
-    explanation: String,
-    features: serde_json::Value,
+#[derive(Serialize, Deserialize, Debug)]
+struct AppState {
+    project_root: String,
 }
 
-/// Command to scan a URL via the API
-#[tauri::command]
-async fn scan_url(url: String, token: String) -> Result<ScanResult, String> {
-    // Call the Python API
-    let client = reqwest::Client::new();
-    let api_url = "http://localhost:8000/api/v1/analyze";
-    
-    let request_body = serde_json::json!({
-        "url": url,
-        "force_scan": false
-    });
-    
-    let response = client
-        .post(api_url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("API request failed: {}", e))?;
-    
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_default();
-        return Err(format!("API error {}: {}", status, error_text));
+impl AppState {
+    fn new() -> Self {
+        // Get project root from current executable path
+        let current_dir = std::env::current_dir()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        Self {
+            project_root: current_dir,
+        }
     }
-    
-    let api_result: ApiResponse = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-    
+}
+
+/// Scan a URL by calling Python script directly (no server needed)
+#[tauri::command]
+fn scan_url(url: String, state: State<'_, Mutex<AppState>>) -> Result<ScanResult, String> {
+    let app_state = state.lock().map_err(|e| e.to_string())?;
+
+    // Call Python script directly
+    let output = Command::new("python3")
+        .arg("detect_enhanced.py")
+        .arg("--json")
+        .arg(&url)
+        .current_dir(&app_state.project_root)
+        .output()
+        .map_err(|e| format!("Failed to execute Python: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Python error: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse JSON result
+    let result: serde_json::Value =
+        serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse result: {}", e))?;
+
     Ok(ScanResult {
-        url: api_result.url,
-        classification: api_result.classification,
-        confidence: api_result.confidence,
-        risk_score: api_result.risk_score,
-        explanation: api_result.explanation,
+        url: result["url"].as_str().unwrap_or(&url).to_string(),
+        classification: result["classification"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string(),
+        confidence: result["confidence"].as_f64().unwrap_or(0.0),
+        risk_score: result["risk_score"].as_i64().unwrap_or(0) as i32,
+        explanation: result["explanation"].as_str().unwrap_or("").to_string(),
     })
 }
 
-/// Command to authenticate with the API
+/// Batch scan multiple URLs
 #[tauri::command]
-async fn authenticate(username: String, password: String) -> Result<String, String> {
-    let client = reqwest::Client::new();
-    let api_url = "http://localhost:8000/auth/login";
-    
-    let request_body = serde_json::json!({
-        "username": username,
-        "password": password
-    });
-    
-    let response = client
-        .post(api_url)
-        .header("Content-Type", "application/json")
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("Auth request failed: {}", e))?;
-    
-    if !response.status().is_success() {
-        return Err("Authentication failed".to_string());
+fn scan_batch(
+    urls: Vec<String>,
+    state: State<'_, Mutex<AppState>>,
+) -> Result<Vec<ScanResult>, String> {
+    let mut results = Vec::new();
+
+    for url in urls {
+        match scan_url(url, state) {
+            Ok(result) => results.push(result),
+            Err(e) => {
+                results.push(ScanResult {
+                    url: url,
+                    classification: "error".to_string(),
+                    confidence: 0.0,
+                    risk_score: 0,
+                    explanation: e,
+                });
+            }
+        }
     }
-    
-    let auth_result: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse auth response: {}", e))?;
-    
-    let token = auth_result["access_token"]
-        .as_str()
-        .ok_or("Invalid token format")?;
-    
-    Ok(token.to_string())
+
+    Ok(results)
 }
 
-/// Command to check API health
+/// Check if Python environment is available
 #[tauri::command]
-async fn check_api_health() -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::new();
-    let api_url = "http://localhost:8000/health";
-    
-    let response = client
-        .get(api_url)
-        .timeout(std::time::Duration::from_secs(5))
-        .send()
-        .await
-        .map_err(|e| format!("Health check failed: {}", e))?;
-    
-    let health: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse health response: {}", e))?;
-    
-    Ok(health)
+fn check_environment() -> Result<serde_json::Value, String> {
+    let output = Command::new("python3")
+        .arg("--version")
+        .output()
+        .map_err(|e| format!("Python not found: {}", e))?;
+
+    let version = String::from_utf8_lossy(&output.stdout);
+
+    // Check if required packages are installed
+    let pkg_check = Command::new("python3")
+        .args(&["-c", "import sklearn, colorama; print('OK')"])
+        .output();
+
+    let packages_ok = match pkg_check {
+        Ok(out) => String::from_utf8_lossy(&out.stdout).contains("OK"),
+        Err(_) => false,
+    };
+
+    Ok(serde_json::json!({
+        "python_version": version.trim(),
+        "packages_installed": packages_ok,
+        "status": if packages_ok { "ready" } else { "missing_dependencies" }
+    }))
 }
 
-/// Command to save authentication token
+/// Get application info
 #[tauri::command]
-fn save_token(token: String) -> Result<(), String> {
-    // In a real app, use secure storage
-    // For now, we'll rely on the frontend to manage it
-    Ok(())
-}
-
-/// Command to show notification
-#[tauri::command]
-fn show_notification(title: String, body: String) {
-    tauri::api::notification::Notification::new(&title)
-        .title(title)
-        .body(body)
-        .show()
-        .unwrap_or_default();
+fn get_app_info() -> serde_json::Value {
+    serde_json::json!({
+        "name": "Phishing Guard",
+        "version": "2.0.0",
+        "mode": "standalone",
+        "python_required": true,
+        "features": [
+            "Real-time URL scanning",
+            "93 ML features",
+            "4-category classification",
+            "Offline capability",
+            "Batch processing"
+        ]
+    })
 }
 
 fn main() {
-    // System tray menu
-    let tray_menu = SystemTrayMenu::new()
-        .add_item(CustomMenuItem::new("open", "Open"))
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(CustomMenuItem::new("quit", "Quit"));
-
-    let system_tray = SystemTray::new().with_menu(tray_menu);
-
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .manage(Mutex::new(AppState::new()))
         .invoke_handler(tauri::generate_handler![
             scan_url,
-            authenticate,
-            check_api_health,
-            save_token,
-            show_notification
+            scan_batch,
+            check_environment,
+            get_app_info
         ])
-        .system_tray(system_tray)
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick {
-                position: _,
-                size: _,
-                ..
-            } => {
-                let window = app.get_window("main").unwrap();
-                window.show().unwrap();
-                window.set_focus().unwrap();
-            }
-            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                "open" => {
-                    let window = app.get_window("main").unwrap();
-                    window.show().unwrap();
-                    window.set_focus().unwrap();
-                }
-                _ => {}
-            },
-            _ => {}
-        })
-        .on_window_event(|event| match event.event() {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                // Hide to tray instead of closing
-                event.window().hide().unwrap();
-                api.prevent_close();
-            }
-            _ => {}
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
