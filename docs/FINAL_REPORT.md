@@ -133,7 +133,7 @@ All major deliverables finished. Project ready for:
 - Installation: Load unpacked
 
 **2. Tauri Desktop App** ✅ STRUCTURE READY
-- Location: `gui-tauri/`
+- Location: `~/phishing-guard-tauri/` (moved to separate project)
 - Files: 6 files, 603 lines
 - Stack: Rust + React
 - Features:

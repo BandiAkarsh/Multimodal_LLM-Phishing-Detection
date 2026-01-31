@@ -126,7 +126,7 @@
 | 50 | **Auto-scaling policies** | N/A | Not applicable | Skip |
 | 51 | **Health check endpoints** | `04_inference/api.py` | No health checks | `/health` endpoint |
 | 52 | **Circuit breaker patterns** | `04_inference/service.py` | No failure handling | Graceful degradation |
-| 53 | **Tauri GUI framework** | `gui-tauri/` | CustomTkinter (dated) | Tauri (Rust + React) - modern native app |
+| 53 | **Tauri GUI framework** | `~/phishing-guard-tauri/` | CustomTkinter (dated) | Tauri (Rust + React) - modern native app (separate project) |
 | 54 | **Browser extension** | `browser-extension/` | No browser protection | Chrome/Firefox/Brave extension |
 | 55 | **Mobile app** | `mobile/` | No mobile support | Skip (optional for project) |
 | 56 | **Web dashboard** | `dashboard/` | No web interface | Optional - Tauri covers this |
@@ -666,7 +666,7 @@ phishing_detection_project/
 │   ├── popup.html
 │   ├── popup.js
 │   └── styles.css
-├── gui-tauri/                    [NEW - Tauri desktop app]
+├── gui-tauri/                    [REFERENCE COPY - active dev in ~/phishing-guard-tauri/]
 │   ├── src-tauri/
 │   │   ├── Cargo.toml
 │   │   └── src/main.rs
