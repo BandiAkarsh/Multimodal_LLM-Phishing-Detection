@@ -25,6 +25,10 @@ Detection Modes:
    - Can only classify as LEGITIMATE or PHISHING
    - Cannot detect AI-generated or toolkit-based attacks
    - Results marked as "[OFFLINE MODE]"
+
+Author: Akarsh (akarshbandi82@gmail.com)
+GitHub: https://github.com/BandiAkarsh
+Version: 2.0.0
 """
 
 import sys
