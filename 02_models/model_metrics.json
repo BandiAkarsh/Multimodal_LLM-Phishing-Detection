@@ -1,0 +1,46 @@
+{
+  "model_name": "phishing_classifier",
+  "export_date": "2026-01-31T10:33:14.972838",
+  "versions": [
+    {
+      "version": 2,
+      "stage": "Production",
+      "run_id": "0b5adbb83c7a471cb3e9a9a56a07325b",
+      "created_at": "2026-01-31T10:33:12.584000",
+      "metrics": {
+        "f1_score": 0.996996996996997,
+        "feature_importance_entropy": 0.07649713694744549,
+        "feature_importance_unicode_punctuation_count": 0.06645906587102672,
+        "feature_importance_unicode_letter_count": 0.025200746873581804,
+        "feature_importance_path_length": 0.1951147003256676,
+        "feature_importance_num_slashes": 0.13402561055459947,
+        "feature_importance_subdomain_length": 0.05178289373608945,
+        "accuracy": 0.9963592233009708,
+        "feature_importance_num_dots": 0.058176944694726805,
+        "feature_importance_subdomain_depth": 0.03940182324432679,
+        "feature_importance_url_length": 0.08557911289920504,
+        "feature_importance_path_depth": 0.052448012153243746
+      }
+    },
+    {
+      "version": 1,
+      "stage": "None",
+      "run_id": "0b5adbb83c7a471cb3e9a9a56a07325b",
+      "created_at": "2026-01-31T10:33:12.509000",
+      "metrics": {
+        "f1_score": 0.996996996996997,
+        "feature_importance_entropy": 0.07649713694744549,
+        "feature_importance_unicode_punctuation_count": 0.06645906587102672,
+        "feature_importance_unicode_letter_count": 0.025200746873581804,
+        "feature_importance_path_length": 0.1951147003256676,
+        "feature_importance_num_slashes": 0.13402561055459947,
+        "feature_importance_subdomain_length": 0.05178289373608945,
+        "accuracy": 0.9963592233009708,
+        "feature_importance_num_dots": 0.058176944694726805,
+        "feature_importance_subdomain_depth": 0.03940182324432679,
+        "feature_importance_url_length": 0.08557911289920504,
+        "feature_importance_path_depth": 0.052448012153243746
+      }
+    }
+  ]
+}

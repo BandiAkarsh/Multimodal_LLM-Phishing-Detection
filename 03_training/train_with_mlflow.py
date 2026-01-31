@@ -241,18 +241,44 @@ def train_and_log_model(features_df, model_manager):
     print(f"  TN: {cm[0][0]:5d}  FP: {cm[0][1]:5d}")
     print(f"  FN: {cm[1][0]:5d}  TP: {cm[1][1]:5d}")
     
-    # Save best model as primary
-    model_manager.log_model_training(
+    # Save best model as primary and get run_id for registration
+    print("\n📦 Logging best model to MLflow...")
+    run_id = model_manager.log_model_training(
         model=best_model,
         model_name="phishing_classifier",  # Primary name
         metrics={"f1_score": best_f1, "accuracy": accuracy_score(y_test, y_pred_best)},
-        params={"model_type": best_name, "is_primary": True},
+        params={"model_type": best_name, "is_primary": True, "features_count": len(feature_cols)},
         X_train_sample=X_train_scaled[:10],
         feature_names=feature_cols,
         dataset_info={"size": len(features_df), "version": "v2.0"}
     )
     
-    return best_model, scaler, feature_cols
+    # Register model in MLflow Model Registry
+    print("\n🔧 Registering model in MLflow Model Registry...")
+    try:
+        version = model_manager.register_model(
+            model_name="phishing_classifier",
+            run_id=run_id,
+            tags={
+                "model_type": best_name,
+                "f1_score": str(best_f1),
+                "features_count": str(len(feature_cols)),
+                "status": "staging"
+            },
+            description=f"Phishing detection model ({best_name}) with {len(feature_cols)} features, F1={best_f1:.4f}"
+        )
+        print(f"  ✓ Model registered: phishing_classifier v{version}")
+        
+        # Transition to production if performance is good
+        if best_f1 >= 0.90:
+            print("  🚀 Transitioning to Production (F1 >= 0.90)...")
+            model_manager.transition_to_production("phishing_classifier", version)
+            print(f"  ✓ Model v{version} is now in Production stage")
+    except Exception as e:
+        print(f"  ⚠️ Model registration skipped: {e}")
+        print("  Note: Model is still available in MLflow runs and joblib files")
+    
+    return best_model, scaler, feature_cols, run_id
 
 
 def save_artifacts(model, scaler, feature_cols):
@@ -298,7 +324,7 @@ def main():
     features_df = extract_features_batch(dataset, dataset['label'], max_samples=5000)
     
     # Train and log
-    model, scaler, feature_cols = train_and_log_model(features_df, model_manager)
+    model, scaler, feature_cols, run_id = train_and_log_model(features_df, model_manager)
     
     # Save artifacts
     save_artifacts(model, scaler, feature_cols)
@@ -309,8 +335,13 @@ def main():
     print("\n" + "="*60)
     print("TRAINING COMPLETE!")
     print("="*60)
+    print("\n📊 MLflow Model Registry:")
+    print("  Model: phishing_classifier")
+    print("  Run ID:", run_id)
+    print("  Status: Registered and ready for loading")
     print("\nView results:")
     print("  mlflow ui --backend-store-uri ./mlruns")
+    print("  # In MLflow UI -> Models tab -> phishing_classifier")
     print("\nCompare models:")
     comparison = model_manager.compare_models([
         "phishing_classifier_random_forest",

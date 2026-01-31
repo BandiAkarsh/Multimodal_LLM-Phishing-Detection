@@ -114,10 +114,10 @@ class ModelManager:
                 except Exception as e:
                     logger.warning(f"Could not infer signature: {e}")
             
-            # Log the model
+            # Log the model (using 'name' instead of deprecated 'artifact_path')
             mlflow.sklearn.log_model(
                 model,
-                artifact_path="model",
+                name="model",
                 registered_model_name=model_name,
                 signature=signature,
                 input_example=X_train_sample[:5] if X_train_sample is not None else None
@@ -169,6 +169,88 @@ class ModelManager:
             logger.info(f"Loading from joblib fallback: {model_path}")
             return joblib.load(model_path)
         raise FileNotFoundError(f"Model not found: {model_name}")
+    
+    def register_model(
+        self,
+        model_name: str,
+        run_id: str,
+        tags: Optional[Dict[str, str]] = None,
+        description: Optional[str] = None
+    ) -> str:
+        """
+        Register a trained model in MLflow Model Registry.
+        
+        This creates a versioned model entry that can be loaded by name.
+        
+        Args:
+            model_name: Name to register the model under
+            run_id: MLflow run ID from training
+            tags: Optional tags for the model version
+            description: Optional description
+            
+        Returns:
+            Version string of the registered model
+        """
+        from mlflow.tracking import MlflowClient
+        
+        client = MlflowClient()
+        
+        try:
+            # Create or get registered model
+            try:
+                client.create_registered_model(model_name, description=description or f"Model: {model_name}")
+                logger.info(f"Created registered model: {model_name}")
+            except mlflow.exceptions.MlflowException:
+                # Model already exists
+                logger.info(f"Registered model already exists: {model_name}")
+            
+            # Create model version from run
+            model_version = client.create_model_version(
+                name=model_name,
+                source=f"runs:/{run_id}/model",
+                run_id=run_id,
+                tags=tags or {}
+            )
+            
+            version_number = model_version.version
+            logger.info(f"Registered model version: {model_name} v{version_number}")
+            
+            # Transition to staging
+            client.transition_model_version_stage(
+                name=model_name,
+                version=version_number,
+                stage="Staging"
+            )
+            logger.info(f"Transitioned to Staging: {model_name} v{version_number}")
+            
+            return version_number
+            
+        except Exception as e:
+            logger.error(f"Failed to register model {model_name}: {e}")
+            raise
+    
+    def transition_to_production(self, model_name: str, version: int) -> None:
+        """
+        Transition a model version to Production stage.
+        
+        Args:
+            model_name: Registered model name
+            version: Version number to transition
+        """
+        from mlflow.tracking import MlflowClient
+        
+        client = MlflowClient()
+        
+        try:
+            client.transition_model_version_stage(
+                name=model_name,
+                version=version,
+                stage="Production"
+            )
+            logger.info(f"Transitioned to Production: {model_name} v{version}")
+        except Exception as e:
+            logger.error(f"Failed to transition to production: {e}")
+            raise
     
     def compare_models(
         self,
