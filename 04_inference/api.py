@@ -461,10 +461,107 @@ async def extract_features(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Feature extraction failed: {str(e)}")
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "api:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
+# HTTPS/SSL Configuration
+SSL_CERT_PATH = os.getenv("SSL_CERT_PATH", "./certs/server.crt")
+SSL_KEY_PATH = os.getenv("SSL_KEY_PATH", "./certs/server.key")
+ENABLE_HTTPS = os.getenv("ENABLE_HTTPS", "false").lower() == "true"
+
+
+def generate_self_signed_cert():
+    """Generate self-signed SSL certificates for HTTPS."""
+    from cryptography import x509
+    from cryptography.x509.oid import NameOID
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from cryptography.hazmat.primitives import serialization
+    import datetime
+    
+    # Create certificates directory
+    cert_dir = Path(SSL_CERT_PATH).parent
+    cert_dir.mkdir(exist_ok=True)
+    
+    # Generate private key
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
     )
+    
+    # Generate certificate
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "California"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, "San Francisco"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Phishing Guard"),
+        x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+    ])
+    
+    cert = x509.CertificateBuilder().subject_name(
+        subject
+    ).issuer_name(
+        issuer
+    ).public_key(
+        private_key.public_key()
+    ).serial_number(
+        x509.random_serial_number()
+    ).not_valid_before(
+        datetime.datetime.utcnow()
+    ).not_valid_after(
+        datetime.datetime.utcnow() + datetime.timedelta(days=365)
+    ).add_extension(
+        x509.SubjectAlternativeName([
+            x509.DNSName("localhost"),
+            x509.DNSName("*.localhost"),
+            x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+        ]),
+        critical=False,
+    ).sign(private_key, hashes.SHA256())
+    
+    # Write certificate
+    with open(SSL_CERT_PATH, "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.PEM))
+    
+    # Write private key
+    with open(SSL_KEY_PATH, "wb") as f:
+        f.write(private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        ))
+    
+    print(f"Generated self-signed certificates:")
+    print(f"  Certificate: {SSL_CERT_PATH}")
+    print(f"  Private Key: {SSL_KEY_PATH}")
+
+
+if __name__ == "__main__":
+    import ipaddress
+    from pathlib import Path
+    
+    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("HOST", "0.0.0.0")
+    
+    if ENABLE_HTTPS:
+        # Generate certificates if they don't exist
+        if not Path(SSL_CERT_PATH).exists() or not Path(SSL_KEY_PATH).exists():
+            print("Generating self-signed SSL certificates...")
+            generate_self_signed_cert()
+        
+        print(f"Starting HTTPS server on https://{host}:{port}")
+        print(f"Note: You'll need to accept the self-signed certificate in your browser")
+        
+        uvicorn.run(
+            "api:app",
+            host=host,
+            port=port,
+            ssl_keyfile=SSL_KEY_PATH,
+            ssl_certfile=SSL_CERT_PATH,
+            reload=False  # Disable reload in production HTTPS mode
+        )
+    else:
+        print(f"Starting HTTP server on http://{host}:{port}")
+        uvicorn.run(
+            "api:app",
+            host=host,
+            port=port,
+            reload=True
+        )
