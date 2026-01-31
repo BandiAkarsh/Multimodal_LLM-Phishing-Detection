@@ -4,9 +4,18 @@ from pathlib import Path
 from tqdm import tqdm
 from mllm_transformer import MLLMFeatureTransformer
 
+# Dynamic path resolution for standalone operation
+UTILS_DIR = Path(__file__).parent.absolute()
+PROJECT_ROOT = UTILS_DIR.parent
+DEFAULT_DATA_DIR = PROJECT_ROOT / "01_data" / "processed" / "metadata"
+
 class TextFeatureGenerator:
-    def __init__(self, data_dir="./01_data/processed/metadata"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_dir=None):
+        # Use provided path or default to project-relative path
+        if data_dir is None:
+            self.data_dir = DEFAULT_DATA_DIR
+        else:
+            self.data_dir = Path(data_dir)
         self.output_dir = self.data_dir.parent / "mllm_features"
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
