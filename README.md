@@ -66,16 +66,32 @@ python detect_enhanced.py --interactive
 python detect_enhanced.py --file urls.txt --output results.json
 ```
 
-### 3. API Server Mode
+### 3. API Server Mode (Development/Testing)
+
+**⚠️ Note: This is the standalone FastAPI backend server. For production use, install the Daemon (see below) which includes a lightweight API.**
+
+Use this when you want to:
+- Test the API endpoints directly
+- Use the detection service via HTTP requests
+- Integrate with other applications
+- Access Swagger UI documentation
+
 ```bash
-# Start server
+# Start the FastAPI server (runs on localhost:8000)
 python 04_inference/api.py
 
-# Test endpoints:
-# - http://localhost:8000/health
-# - http://localhost:8000/docs (API docs)
-# - http://localhost:8000/api/v1/analyze (POST)
+# Server provides:
+# - http://localhost:8000/health          (Health check)
+# - http://localhost:8000/docs            (Swagger UI API docs)
+# - http://localhost:8000/api/v1/analyze  (POST endpoint for URL analysis)
+
+# Example API call:
+curl -X POST http://localhost:8000/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "use_mllm": true}'
 ```
+
+**For 24/7 background protection, use the Daemon instead (it has its own lightweight API).**
 
 ### 4. Desktop Application (Tauri GUI)
 ```bash
@@ -95,7 +111,46 @@ phishing-guard
 # For lightweight background service, use the Daemon (see below)
 ```
 
-### 5. Browser Extension
+### 5. Background Daemon Service (Recommended for 24/7 Protection)
+
+**For continuous protection without running a server manually, use the standalone Daemon:**
+
+```bash
+# Install the lightweight daemon (166KB)
+cd ~
+sudo dpkg -i phishing-guard_2.0.0-1_all.deb
+
+# Start the service (auto-runs on boot)
+sudo systemctl start phishing-guard
+sudo systemctl enable phishing-guard  # Enable auto-start
+
+# The daemon provides:
+# - API at http://localhost:8000 (lightweight HTTP server)
+# - Browser extension integration
+# - Optional email monitoring
+# - Desktop notifications
+
+# Configure email (opens visual guide):
+phishing-guard config
+
+# Check status:
+phishing-guard status
+
+# View logs:
+sudo journalctl -u phishing-guard -f
+```
+
+**⚡ Key Differences:**
+| | API Server (This Project) | Daemon Service |
+|---|---|---|
+| **Purpose** | Development/testing | Production 24/7 protection |
+| **Type** | FastAPI (full-featured) | Lightweight HTTP server |
+| **Run** | Manual (`python api.py`) | Systemd service (auto-start) |
+| **Size** | Part of main project | 166KB standalone |
+| **MLLM** | Yes (Qwen support) | No (Random Forest only) |
+| **Best For** | IEEE demo, API integration | Family protection, always-on |
+
+### 6. Browser Extension
 ```bash
 # Chrome/Brave:
 1. Open chrome://extensions
@@ -104,7 +159,7 @@ phishing-guard
 4. Select browser-extension/ folder
 ```
 
-### 6. MLflow Model Management
+### 7. MLflow Model Management
 ```bash
 # Train with tracking
 python 03_training/train_with_mlflow.py
