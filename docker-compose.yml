@@ -1,29 +1,56 @@
-# Phishing Detection System - Docker Compose
-# Multi-container setup for production deployment
+# Phishing Guard v2.0 - Docker Compose
+# Author: Akarsh <akarshbandi82@gmail.com>
+# GitHub: https://github.com/BandiAkarsh
+# LinkedIn: https://www.linkedin.com/in/bandi-akarsh-b9339330a/
+#
+# Multi-container setup for production deployment of the FULL FastAPI server.
+#
+# ⚠️ IMPORTANT: For 24/7 background protection, use the Daemon instead:
+#   cd ~
+#   sudo dpkg -i phishing-guard_2.0.0-1_all.deb
+#   sudo systemctl enable --now phishing-guard
+#
+# Related Projects:
+# - Daemon Service: ~/phishing-guard-daemon/ (166KB, systemd service)
+# - Tauri GUI: ~/phishing-guard-tauri/ (3.8MB, desktop app)
+# - Main Project: ~/phishing_detection_project/ (this repo)
+#
+# Quick Start:
+#   1. docker-compose up --build      # Build and run
+#   2. docker-compose up -d           # Run in background
+#   3. docker-compose logs -f         # View logs
+#   4. docker-compose down            # Stop
 #
 # Features:
 # - Internet-aware detection with web scraping
 # - Redis cache for performance
 # - Health checks with connectivity status
+# - Persistent volumes for data
 
 version: '3.8'
 
 services:
-  # Main API Service
+  # Main API Service (Full FastAPI Server)
   api:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: phishing-guard-api
     ports:
       - "8000:8000"
     environment:
-      - LOAD_MLLM=false
+      - LOAD_MLLM=false           # Set to 'true' to enable Qwen/Ollama
       - PORT=8000
+      - HOST=0.0.0.0
       # Connectivity settings
       - CONNECTIVITY_CHECK_INTERVAL=30
       - SCRAPING_TIMEOUT=30000
+      - REDIS_URL=redis://redis:6379
     volumes:
+      # Mount models as read-only (safety)
       - ./02_models:/app/02_models:ro
+      # Mount logs for persistence
+      - ./08_logs:/app/08_logs
     restart: unless-stopped
     # Network configuration for internet access
     dns:
@@ -37,10 +64,14 @@ services:
       start_period: 15s
     networks:
       - phishing_net
+    depends_on:
+      redis:
+        condition: service_healthy
 
   # Redis Cache (for production caching of results)
   redis:
     image: redis:7-alpine
+    container_name: phishing-guard-redis
     ports:
       - "6379:6379"
     volumes:
@@ -54,9 +85,11 @@ services:
     networks:
       - phishing_net
 
-  # Optional: Nginx Load Balancer (for scaling)
+  # Optional: Nginx Load Balancer (for scaling multiple API instances)
+  # Uncomment below to enable load balancing
   # nginx:
   #   image: nginx:alpine
+  #   container_name: phishing-guard-nginx
   #   ports:
   #     - "80:80"
   #   volumes:
@@ -69,8 +102,12 @@ services:
 
 volumes:
   redis_data:
+    driver: local
 
 networks:
   phishing_net:
     name: phishing_detection_network
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

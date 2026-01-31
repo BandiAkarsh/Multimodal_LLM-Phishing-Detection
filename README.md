@@ -348,19 +348,183 @@ mlflow ui --backend-store-uri ./mlruns
 
 ## 📦 Deployment
 
-### Docker
+### 🐳 Docker Deployment (Full API Server)
+
+**⚠️ Note:** This deploys the **full FastAPI server** with all features (authentication, web scraping, MLLM support).
+For lightweight 24/7 background protection, use the [Daemon Service](~/phishing-guard-daemon/) instead.
+
+#### Quick Start (3 Commands)
+
 ```bash
-docker-compose up --build
+# 1. Clone the repository
+cd ~/phishing_detection_project
+
+# 2. Build and start containers
+docker-compose up --build -d
+
+# 3. Check it's running
+curl http://localhost:8000/health
 ```
 
-### Standalone
-```bash
-# Build executable
-./scripts/build_desktop_app.sh
+#### Step-by-Step Docker Setup
 
-# Or install
-dpkg -i gui-tauri/src-tauri/target/release/bundle/deb/*.deb
+**Option A: Docker Compose (Recommended)**
+
+```bash
+# Start all services (API + Redis cache)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Check status
+docker-compose ps
+
+# Stop services
+docker-compose down
+
+# Rebuild after code changes
+docker-compose up --build -d
 ```
+
+**Option B: Single Docker Container (Simpler)**
+
+```bash
+# Build the image
+docker build -t phishing-guard-api .
+
+# Run the container
+docker run -d \
+  --name phishing-guard \
+  -p 8000:8000 \
+  -v $(pwd)/02_models:/app/02_models:ro \
+  phishing-guard-api
+
+# View logs
+docker logs -f phishing-guard
+
+# Stop container
+docker stop phishing-guard
+docker rm phishing-guard
+```
+
+#### Docker Services Overview
+
+| Service | Container | Port | Purpose |
+|---------|-----------|------|---------|
+| **API** | `phishing-guard-api` | 8000 | FastAPI server with ML models |
+| **Redis** | `phishing-guard-redis` | 6379 | Cache for detection results |
+
+#### Testing the Docker Deployment
+
+```bash
+# 1. Health check
+curl http://localhost:8000/health
+
+# 2. View API documentation
+curl http://localhost:8000/docs
+# Open in browser: http://localhost:8000/docs
+
+# 3. Test URL detection
+curl -X POST http://localhost:8000/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+```
+
+#### Docker Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOAD_MLLM` | `false` | Enable Qwen/Ollama MLLM analysis |
+| `PORT` | `8000` | API server port |
+| `HOST` | `0.0.0.0` | Bind address |
+| `CONNECTIVITY_CHECK_INTERVAL` | `30` | Seconds between connectivity checks |
+| `SCRAPING_TIMEOUT` | `30000` | Web scraping timeout (ms) |
+
+#### Common Docker Commands
+
+```bash
+# Restart API after code changes
+docker-compose restart api
+
+# Execute commands in container
+docker-compose exec api bash
+docker-compose exec api python detect_enhanced.py https://example.com
+
+# View container stats
+docker stats phishing-guard-api
+
+# Update images
+docker-compose pull
+docker-compose up -d
+
+# Clean up unused containers/volumes
+docker-compose down -v
+docker system prune
+```
+
+#### Troubleshooting Docker
+
+```bash
+# Container not starting - check logs
+docker-compose logs api
+
+# Port already in use - check what's using port 8000
+sudo lsof -i :8000
+
+# Permission denied on volumes
+sudo chown -R $USER:$USER 02_models/
+
+# Rebuild from scratch
+docker-compose down -v
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+---
+
+### 🖥️ Standalone Desktop App (Tauri GUI)
+
+**Note:** The desktop GUI is maintained in a separate folder (`~/phishing-guard-tauri/`).
+
+```bash
+# Option 1: Run pre-built binary
+cd ~/phishing-guard-tauri
+./src-tauri/target/release/phishing-guard
+
+# Option 2: Install .deb package (3.8MB)
+cd ~/phishing-guard-tauri/releases
+sudo dpkg -i "Phishing Guard_2.0.0_amd64.deb"
+phishing-guard
+
+# Option 3: Build from source
+cd ~/phishing-guard-tauri
+npm install
+npm run tauri build
+```
+
+---
+
+### ⚙️ Background Daemon Service (Recommended for 24/7)
+
+For lightweight, always-on protection (166KB):
+
+```bash
+# Install daemon
+cd ~
+sudo dpkg -i phishing-guard_2.0.0-1_all.deb
+
+# Start service
+sudo systemctl enable --now phishing-guard
+
+# Configure email
+phishing-guard config
+
+# Check status
+phishing-guard status
+```
+
+See `~/phishing-guard-daemon/README.md` for full daemon documentation.
 
 ## 🎯 Use Cases
 
@@ -369,11 +533,19 @@ dpkg -i gui-tauri/src-tauri/target/release/bundle/deb/*.deb
 - **Research**: MLflow experiments + 93 features
 - **Education**: 4-category classification teaching
 
-## 📞 Support
+## 📞 Support & Contact
 
-- 📧 Email: [your-email]
-- 💼 LinkedIn: [your-profile]
-- 🐛 Issues: GitHub Issues
+**Author: Akarsh Bandi**
+- 📧 **Email**: akarshbandi82@gmail.com
+- 💼 **LinkedIn**: [bandi-akarsh-b9339330a](https://www.linkedin.com/in/bandi-akarsh-b9339330a/)
+- 🐱 **GitHub**: [BandiAkarsh](https://github.com/BandiAkarsh)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/BandiAkarsh/phishing_detection_project/issues)
+
+## 👏 Acknowledgments
+
+- **IEEE Project Guide**: [Add your guide's name]
+- **Institution**: [Add your college/university]
+- **Built with**: Python, FastAPI, Tauri, Rust, React, scikit-learn
 
 ## 📄 License
 
