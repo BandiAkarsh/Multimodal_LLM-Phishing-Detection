@@ -49,3 +49,13 @@ trigger_alert.py
 # MLflow tracking (regenerates in root)
 mlruns/
 model_metrics.json
+
+# Tauri Build Artifacts
+gui-tauri/dist/
+gui-tauri/node_modules/
+gui-tauri/package-lock.json
+gui-tauri/src-tauri/Cargo.lock
+gui-tauri/src-tauri/build.rs
+gui-tauri/src-tauri/gen/
+gui-tauri/src-tauri/icons/
+gui-tauri/src-tauri/target/
