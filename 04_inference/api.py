@@ -28,10 +28,6 @@ Usage:
     
     # With MLLM enabled
     LOAD_MLLM=true uvicorn api:app --host 0.0.0.0 --port 8000
-
-Author: Akarsh (akarshbandi82@gmail.com)
-GitHub: https://github.com/BandiAkarsh
-Version: 2.0.0
 """
 
 import sys

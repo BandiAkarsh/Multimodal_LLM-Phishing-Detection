@@ -15,8 +15,7 @@ Usage:
     python detect.py --json             # Output as JSON
     python detect.py --batch urls.txt --output results.json
 
-Author: Akarsh (akarshbandi82@gmail.com)
-GitHub: https://github.com/BandiAkarsh
+Author: Phishing Guard Team
 Version: 2.0.0
 """
 
