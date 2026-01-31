@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::sync::Mutex;
-use tauri::{Manager, State};
+use tauri::State;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct ScanResult {
@@ -34,17 +34,14 @@ impl AppState {
     }
 }
 
-/// Scan a URL by calling Python script directly (no server needed)
-#[tauri::command]
-fn scan_url(url: String, state: State<'_, Mutex<AppState>>) -> Result<ScanResult, String> {
-    let app_state = state.lock().map_err(|e| e.to_string())?;
-
+/// Internal function to scan a URL
+fn scan_url_internal(url: &str, project_root: &str) -> Result<ScanResult, String> {
     // Call Python script directly
     let output = Command::new("python3")
         .arg("detect_enhanced.py")
         .arg("--json")
-        .arg(&url)
-        .current_dir(&app_state.project_root)
+        .arg(url)
+        .current_dir(project_root)
         .output()
         .map_err(|e| format!("Failed to execute Python: {}", e))?;
 
@@ -60,7 +57,7 @@ fn scan_url(url: String, state: State<'_, Mutex<AppState>>) -> Result<ScanResult
         serde_json::from_str(&stdout).map_err(|e| format!("Failed to parse result: {}", e))?;
 
     Ok(ScanResult {
-        url: result["url"].as_str().unwrap_or(&url).to_string(),
+        url: result["url"].as_str().unwrap_or(url).to_string(),
         classification: result["classification"]
             .as_str()
             .unwrap_or("unknown")
@@ -71,6 +68,13 @@ fn scan_url(url: String, state: State<'_, Mutex<AppState>>) -> Result<ScanResult
     })
 }
 
+/// Scan a URL by calling Python script directly (no server needed)
+#[tauri::command]
+fn scan_url(url: String, state: State<'_, Mutex<AppState>>) -> Result<ScanResult, String> {
+    let app_state = state.lock().map_err(|e| e.to_string())?;
+    scan_url_internal(&url, &app_state.project_root)
+}
+
 /// Batch scan multiple URLs
 #[tauri::command]
 fn scan_batch(
@@ -79,8 +83,10 @@ fn scan_batch(
 ) -> Result<Vec<ScanResult>, String> {
     let mut results = Vec::new();
 
+    let app_state = state.lock().map_err(|e| e.to_string())?;
+
     for url in urls {
-        match scan_url(url, state) {
+        match scan_url_internal(&url, &app_state.project_root) {
             Ok(result) => results.push(result),
             Err(e) => {
                 results.push(ScanResult {
