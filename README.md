@@ -8,6 +8,20 @@
 
 **AI-powered phishing detection with 93 ML features, IDN protection, and enterprise security.**
 
+## 📦 Three Separate Projects
+
+This repository contains the **main IEEE project**. Two additional projects have been extracted for different use cases:
+
+| Project | Location | Size | Best For |
+|---------|----------|------|----------|
+| **This Project** | `~/phishing_detection_project/` | Full codebase | IEEE submission, research, reference |
+| **Daemon Service** | `~/phishing-guard-daemon/` | 166KB | Family/friends - 24/7 background protection |
+| **Tauri GUI** | `~/phishing-guard-tauri/` | 3.8MB | Desktop app - visual interface, IEEE demo |
+
+> 💡 **Quick Install**: 
+> - For background protection: `sudo dpkg -i ~/phishing-guard_2.0.0-1_all.deb`
+> - For desktop GUI: `sudo dpkg -i ~/phishing-guard-tauri/releases/Phishing\ Guard_2.0.0_amd64.deb`
+
 ## 🎯 What's New in v2.0
 
 - 🔐 **Enterprise Security**: JWT auth, rate limiting, SSRF protection
@@ -63,14 +77,22 @@ python 04_inference/api.py
 # - http://localhost:8000/api/v1/analyze (POST)
 ```
 
-### 4. Desktop Application
+### 4. Desktop Application (Tauri GUI)
 ```bash
-# Run pre-built binary
-./gui-tauri/src-tauri/target/release/phishing-guard
+# The Tauri desktop app is now maintained as a separate project
+# See: ~/phishing-guard-tauri/
 
-# Or install DEB package
-sudo dpkg -i gui-tauri/src-tauri/target/release/bundle/deb/*.deb
+# Run pre-built binary
+cd ~/phishing-guard-tauri
+./src-tauri/target/release/phishing-guard
+
+# Or install DEB package (3.8MB)
+cd ~/phishing-guard-tauri/releases
+sudo dpkg -i "Phishing Guard_2.0.0_amd64.deb"
 phishing-guard
+
+# Note: This is the full-featured GUI app (3.8MB)
+# For lightweight background service, use the Daemon (see below)
 ```
 
 ### 5. Browser Extension
@@ -126,7 +148,11 @@ mlflow ui --backend-store-uri ./mlruns
                     └────────────────────┘
 ```
 
-## 📁 Clean Project Structure
+## 📁 Project Structure
+
+**Note: This is the main IEEE project. Related projects are now in separate folders:**
+- **Daemon Service**: `~/phishing-guard-daemon/` (lightweight background service)
+- **Tauri GUI**: `~/phishing-guard-tauri/` (desktop application - MOVED)
 
 ```
 phishing_detection_project/
@@ -142,14 +168,13 @@ phishing_detection_project/
 ├── 📂 browser-extension/    # Chrome/Firefox extension
 ├── 📂 docs/                 # Project reports
 ├── 📂 examples/             # Sample files
-├── 📂 gui-tauri/            # Desktop app source
+├── 📂 gui-tauri/            # Desktop app (REFERENCE COPY)
+│                           # ACTIVE DEV: ~/phishing-guard-tauri/
 ├── 📂 scripts/              # Build & utility scripts
 ├── 📂 tests/                # Test data & scripts
 │
-├── 🐍 detect.py             # Basic CLI
 ├── 🐍 detect_enhanced.py    # Enhanced CLI (colors/progress)
 ├── 🐍 email_scanner.py      # Email monitoring
-├── 🐍 gui.py                # GUI application
 ├── 🐍 setup_wizard.py       # Setup wizard
 ├── 🐍 test_security.py      # Security tests
 ├── 🐍 test_comprehensive.py # Full test suite
