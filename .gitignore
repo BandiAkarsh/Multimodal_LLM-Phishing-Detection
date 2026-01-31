@@ -40,7 +40,12 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Test files (now in tests/)
 exam.eml
 send_ai_test.py
 send_detailed_test.py
 trigger_alert.py
+
+# MLflow tracking (regenerates in root)
+mlruns/
+model_metrics.json
