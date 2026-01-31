@@ -18,6 +18,11 @@ This repository contains the **main IEEE project**. Two additional projects have
 | **Daemon Service** | `~/phishing-guard-daemon/` | 166KB | Family/friends - 24/7 background protection |
 | **Tauri GUI** | `~/phishing-guard-tauri/` | 3.8MB | Desktop app - visual interface, IEEE demo |
 
+**GitHub Repositories:**
+- 🏠 **Main Project**: [github.com/BandiAkarsh/phishing_detection_project](https://github.com/BandiAkarsh/phishing_detection_project)
+- ⚙️ **Daemon**: [github.com/BandiAkarsh/phishing-guard-daemon](https://github.com/BandiAkarsh/phishing-guard-daemon)
+- 🖥️ **Tauri GUI**: [github.com/BandiAkarsh/phishing-guard-tauri](https://github.com/BandiAkarsh/phishing-guard-tauri)
+
 > 💡 **Quick Install**: 
 > - For background protection: `sudo dpkg -i ~/phishing-guard_2.0.0-1_all.deb`
 > - For desktop GUI: `sudo dpkg -i ~/phishing-guard-tauri/releases/Phishing\ Guard_2.0.0_amd64.deb`
@@ -205,9 +210,10 @@ mlflow ui --backend-store-uri ./mlruns
 
 ## 📁 Project Structure
 
-**Note: This is the main IEEE project. Related projects are now in separate folders:**
-- **Daemon Service**: `~/phishing-guard-daemon/` (lightweight background service)
-- **Tauri GUI**: `~/phishing-guard-tauri/` (desktop application - MOVED)
+**Note: This is the main IEEE project. Related projects are in separate GitHub repositories:**
+- **This Project**: [github.com/BandiAkarsh/phishing_detection_project](https://github.com/BandiAkarsh/phishing_detection_project) ⭐ Main IEEE project
+- **Daemon Service**: [github.com/BandiAkarsh/phishing-guard-daemon](https://github.com/BandiAkarsh/phishing-guard-daemon) ⚙️ Lightweight background service
+- **Tauri GUI**: [github.com/BandiAkarsh/phishing-guard-tauri](https://github.com/BandiAkarsh/phishing-guard-tauri) 🖥️ Desktop application
 
 ```
 phishing_detection_project/
@@ -357,13 +363,23 @@ For lightweight 24/7 background protection, use the [Daemon Service](~/phishing-
 
 ```bash
 # 1. Clone the repository
-cd ~/phishing_detection_project
+git clone https://github.com/BandiAkarsh/phishing_detection_project.git
+cd phishing_detection_project
 
 # 2. Build and start containers
 docker-compose up --build -d
 
 # 3. Check it's running
 curl http://localhost:8000/health
+```
+
+**Clone other repositories:**
+```bash
+# Daemon Service (for 24/7 background protection)
+git clone https://github.com/BandiAkarsh/phishing-guard-daemon.git
+
+# Tauri GUI Desktop App (for visual interface)
+git clone https://github.com/BandiAkarsh/phishing-guard-tauri.git
 ```
 
 #### Step-by-Step Docker Setup
