@@ -1,0 +1,20 @@
+From: security-alert@paypa1.com
+To: victim@example.com
+Subject: ACTION REQUIRED: Your account has been suspended due to suspicious activity
+Content-Type: text/html; charset="UTF-8"
+
+<html>
+<body>
+    <p>Dear Customer,</p>
+    <p>We noticed unusual activity on your PayPal account.</p>
+    <p>Please verify your identity to unlock your account immediately.</p>
+    <p>
+        <a href="https://paypa1.com/login-verify">Click here to verify your account</a>
+    </p>
+    <p>If you ignore this, your account will be permanently closed.</p>
+    <br>
+    <p>Thank you,</p>
+    <p>PayPal Security Team</p>
+    <p><small>This is an automated message, please do not reply.</small></p>
+</body>
+</html>
