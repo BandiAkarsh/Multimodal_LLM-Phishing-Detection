@@ -129,3 +129,79 @@ trigger_*.py
 
 # Browser extension (if not needed in Docker)
 browser-extension/
+
+# Additional exclusions to reduce Docker build context size
+# Development and debugging
+.coverage
+.coverage.*
+htmlcov/
+cover/
+mypy_cache/
+.ruff_cache/
+.flake8cache/
+
+# Documentation generation
+docs/_build/
+docs/.doctrees/
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.gitmodules/
+
+# CI/CD and automation
+.github/
+.github_actions_cache/
+.circleci/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Testing and QA
+tests/
+test_*.py
+!04_inference/test_security.py
+.vulture/
+check_cve.py
+
+# IDE and editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.cproject
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Package and dependency files
+*.tar.gz
+*.zip
+node_modules/
+package-lock.json
+yarn.lock
+
+# Jupyter notebooks
+*.ipynb
+*.ipynb_checkpoints/
+
+# Additional Python artifacts
+*.pyc
+*.pyo
+*.pyd
+.Python
+dist/
+build/
+.tox/
+.nox/

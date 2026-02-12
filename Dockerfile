@@ -43,11 +43,13 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first (for better layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt || true
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt || true
 
-# Install Playwright and browsers for web scraping (optional, continue on failure)
-RUN pip install playwright && \
-    playwright install chromium || echo "Warning: Playwright installation failed, web scraping may not work"
+# Install Playwright and browsers for web scraping (optional, skip in CI to save space)
+# Uncomment the following lines if you need Playwright:
+# RUN pip install playwright && \
+#     playwright install chromium || echo "Warning: Playwright installation failed, web scraping may not work"
 
 # Copy application code
 # 01_data: TLD lists for domain validation
@@ -66,6 +68,9 @@ ENV PYTHONUNBUFFERED=1
 ENV LOAD_MLLM=false
 ENV PORT=8000
 ENV HOST=0.0.0.0
+
+# Clean up any pip cache created during build
+RUN rm -rf /root/.cache/pip || true
 
 # Security hardening
 # Remove potentially dangerous capabilities
