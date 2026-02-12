@@ -62,6 +62,13 @@ def get_jwt_secret() -> str:
 # Lazy-loaded JWT secret (evaluated on first use, not at import time)
 _JWT_SECRET: Optional[str] = None
 
+# API keys file location
+API_KEYS_FILE = os.path.expanduser("~/.phishing_guard/api_keys.json")
+
+# Security scheme for FastAPI
+security = HTTPBearer()
+
+
 def _get_jwt_secret() -> str:
     """Get JWT secret with lazy loading to avoid import-time evaluation."""
     global _JWT_SECRET
