@@ -236,8 +236,10 @@ class SecureConfigManager:
             # Try regular delete
             try:
                 filepath.unlink()
-            except:
-                pass
+            except (OSError, PermissionError) as e:
+                print(f"[!] Warning: Could not delete {filepath}: {e}")
+            except Exception as e:
+                print(f"[!] Unexpected error deleting {filepath}: {e}")
 
     def update_config(self, updates: dict) -> None:
         """

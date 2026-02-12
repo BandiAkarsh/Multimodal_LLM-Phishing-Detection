@@ -67,6 +67,17 @@ ENV LOAD_MLLM=false
 ENV PORT=8000
 ENV HOST=0.0.0.0
 
+# Security hardening
+# Remove potentially dangerous capabilities
+RUN apt-get update && apt-get install -y libcap2-bin && \
+    # Remove setuid/setgid binaries that aren't needed
+    chmod u-s /usr/bin/chfn 2>/dev/null || true && \
+    chmod u-s /usr/bin/chsh 2>/dev/null || true && \
+    chmod u-s /usr/bin/newgrp 2>/dev/null || true && \
+    # Clean up
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* || true
+
 # Create non-root user for security
 RUN groupadd -r phishing && useradd -r -g phishing appuser \
     && chown -R appuser:phishing /app

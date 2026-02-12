@@ -156,7 +156,8 @@ jobs:
       uses: gitleaks/gitleaks-action@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
+      # Note: Don't use continue-on-error for secrets detection
+      # Secrets should cause build failures to prevent leakage
 
     - name: Dependency vulnerability scan
       run: |

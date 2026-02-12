@@ -36,7 +36,7 @@ class URLFeatureExtractor:
     """Extract handcrafted features from URLs"""
 
     @staticmethod
-    def extract_features(url, include_tls=False):
+    def extract_features(url: str, include_tls: bool = False) -> Dict[str, Any]:
         """
         Extract URL-based features (50+ features total)
 
@@ -224,13 +224,13 @@ class URLFeatureExtractor:
         return features
 
     @staticmethod
-    def _is_ip(domain):
+    def _is_ip(domain: str) -> bool:
         """Check if domain is an IP address"""
         pattern = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
         return bool(pattern.match(domain))
 
     @staticmethod
-    def _has_suspicious_words(url):
+    def _has_suspicious_words(url: str) -> bool:
         """Check for suspicious keywords"""
         suspicious_words = [
             "login",

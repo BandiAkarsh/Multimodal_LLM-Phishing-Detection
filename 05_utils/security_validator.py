@@ -246,19 +246,26 @@ class URLSecurityValidator:
             # Not an IP, try DNS resolution
             pass
 
-        # Try to resolve hostname
+        # Try to resolve hostname (blocking I/O - consider async for production)
         try:
             import socket
 
+            # Use timeout to prevent slow DNS attacks
+            socket.setdefaulttimeout(5)
             ip_str = socket.gethostbyname(hostname)
             ip = ipaddress.ip_address(ip_str)
 
             for network in self.BLOCKED_IP_NETWORKS:
                 if ip in network:
                     return True
-        except Exception:
-            # Can't resolve or other error - allow it
-            pass
+        except (socket.gaierror, socket.timeout, OSError):
+            # DNS resolution failed - reject unknown hosts for safety
+            self.validation_errors.append(f"DNS resolution failed for {hostname}")
+            return True  # Fail closed - treat as potentially dangerous
+        except Exception as e:
+            # Unexpected error - log and fail closed
+            self.validation_errors.append(f"DNS resolution error: {e}")
+            return True  # Fail closed
 
         return False
 

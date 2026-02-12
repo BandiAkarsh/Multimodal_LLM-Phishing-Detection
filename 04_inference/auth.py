@@ -59,13 +59,15 @@ def get_jwt_secret() -> str:
     return secret
 
 
-JWT_SECRET = get_jwt_secret()
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
-API_KEYS_FILE = os.path.expanduser("~/.phishing_guard/api_keys.json")
+# Lazy-loaded JWT secret (evaluated on first use, not at import time)
+_JWT_SECRET: Optional[str] = None
 
-# Security scheme
-security = HTTPBearer()
+def _get_jwt_secret() -> str:
+    """Get JWT secret with lazy loading to avoid import-time evaluation."""
+    global _JWT_SECRET
+    if _JWT_SECRET is None:
+        _JWT_SECRET = get_jwt_secret()
+    return _JWT_SECRET
 
 
 class AuthManager:
@@ -78,19 +80,26 @@ class AuthManager:
     """
 
     def __init__(self):
-        self.jwt_secret = JWT_SECRET
+        self.jwt_secret = _get_jwt_secret()
         self.api_keys = self._load_api_keys()
 
     def _load_api_keys(self) -> Dict[str, Dict]:
         """Load valid API keys from storage."""
         import json
+        import logging
+
+        logger = logging.getLogger(__name__)
 
         if os.path.exists(API_KEYS_FILE):
             try:
                 with open(API_KEYS_FILE, "r") as f:
                     return json.load(f)
-            except:
-                pass
+            except (IOError, JSONDecodeError) as e:
+                logger.warning(f"Failed to load API keys from {API_KEYS_FILE}: {e}")
+                return {}
+            except Exception as e:
+                logger.error(f"Unexpected error loading API keys: {e}")
+                return {}
         return {}
 
     def create_token(self, user_id: str, additional_claims: Optional[Dict] = None) -> str:
@@ -162,14 +171,20 @@ class AuthManager:
         Returns:
             str: The generated API key (save this - only shown once!)
         """
+        import secrets
+
         # Generate secure random API key
         api_key = f"pg_{secrets.token_urlsafe(32)}"
 
-        # Hash for storage (don't store plaintext)
-        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        # Generate unique salt for this API key
+        salt = secrets.token_hex(16)
 
-        # Store metadata
+        # Hash for storage with salt (prevents rainbow table attacks)
+        key_hash = hashlib.sha256((api_key + salt).encode()).hexdigest()
+
+        # Store metadata with salt
         self.api_keys[key_hash] = {
+            "salt": salt,
             "name": name,
             "description": description,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -192,15 +207,24 @@ class AuthManager:
         Returns:
             bool: True if valid, False otherwise
         """
-        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        # Hash with salt for verification
+        # We need to check all stored keys to find a match
+        for key_hash, key_data in self.api_keys.items():
+            salt = key_data.get("salt", "")
+            if not salt:
+                # Legacy keys without salt - skip for security
+                continue
 
-        if key_hash in self.api_keys:
-            key_data = self.api_keys[key_hash]
-            if key_data.get("active", False):
-                # Update last used
-                key_data["last_used"] = datetime.now(timezone.utc).isoformat()
-                self._save_api_keys()
-                return True
+            # Hash the provided key with the stored salt
+            computed_hash = hashlib.sha256((api_key + salt).encode()).hexdigest()
+
+            if computed_hash == key_hash:
+                # Found matching key
+                if key_data.get("active", False):
+                    # Update last used
+                    key_data["last_used"] = datetime.now(timezone.utc).isoformat()
+                    self._save_api_keys()
+                    return True
 
         return False
 

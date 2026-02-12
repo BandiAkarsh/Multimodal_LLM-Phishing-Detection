@@ -26,6 +26,9 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from playwright.async_api import async_playwright
 
+# Import security validator for SSRF protection
+from .security_validator import URLSecurityValidator
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -616,6 +619,17 @@ class WebScraper:
 
             page.on("response", capture_response)
 
+            # Validate URL for SSRF protection before navigation
+            security_validator = URLSecurityValidator()
+            is_valid, error_msg = security_validator.validate_url_for_analysis(url)
+            
+            if not is_valid:
+                logger.warning(f"URL blocked by SSRF protection: {error_msg}")
+                result["success"] = False
+                result["error"] = f"URL validation failed: {error_msg}"
+                result["classification"] = "BLOCKED"
+                return result
+            
             # Navigate to URL (Wait for DOMContentLoaded instead of NetworkIdle to prevent timeouts)
             response = await page.goto(url, timeout=30000, wait_until="domcontentloaded")
 

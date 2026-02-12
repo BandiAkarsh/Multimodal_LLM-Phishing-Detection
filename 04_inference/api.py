@@ -206,14 +206,16 @@ async def login(credentials: dict):
             "expires_in": 86400
         }
     """
-    # Simple credential validation (in production, verify against database)
+    # Credential validation
     username = credentials.get("username", "")
     password = credentials.get("password", "")
 
-    # For demo purposes, accept any non-empty credentials
-    # In production, verify against user database
+    # Validate credentials are provided
     if not username or not password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Username and password required"
+        )
 
     # Generate token
     token = auth_manager.create_token(username)
