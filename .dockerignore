@@ -78,15 +78,19 @@ venv.bak/
 *.swp
 *.swo
 
-# Data files (large)
-01_data/raw/*.csv
-01_data/raw/*.txt
-01_data/processed/screenshots/
-01_data/processed/html/
+# Data files (large - keep in git LFS or separate storage)
+01_data/raw/
+01_data/splits/
+.tmp/
 
-# Model files (keep in git for now, but exclude large ones)
-# 02_models/*.pth
-# 02_models/*.pt
+# Model files (large)
+02_models/
+.cache/
+*.h5
+*.pkl
+*.joblib
+*.pth
+*.pt
 
 # Logs
 08_logs/
@@ -100,3 +104,29 @@ Thumbs.db
 *.env
 secrets/
 credentials/
+
+# GitHub Actions
+.github/
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+docs/_build/
+docs/.doctrees/
+
+# Testing files
+test_*.py
+exam.eml
+send_*.py
+trigger_*.py
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.*lock*
+*lock*
+
+# Browser extension (if not needed in Docker)
+browser-extension/

@@ -76,7 +76,10 @@ def test_login_and_auth():
 
     # Step 1: Login to get token
     print("  Step 1: Login to get JWT token...")
-    login_data = {"username": "testuser@example.com", "password": "testpassword123"}
+    login_data = {
+        "username": os.getenv("TEST_USERNAME", "testuser@example.com"), 
+        "password": os.getenv("TEST_PASSWORD", "testpassword123")
+    }
 
     response = client.post("/auth/login", json=login_data)
 
@@ -147,7 +150,10 @@ def test_rate_limiting():
     print("=" * 60)
 
     # First, login to get a token
-    login_data = {"username": "testuser@example.com", "password": "testpassword123"}
+    login_data = {
+        "username": os.getenv("TEST_USERNAME", "testuser@example.com"),
+        "password": os.getenv("TEST_PASSWORD", "testpassword123")
+    }
 
     response = client.post("/auth/login", json=login_data)
     if response.status_code != 200:
