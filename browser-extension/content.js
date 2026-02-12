@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    // Configuration
-    const API_BASE = 'http://localhost:8000';
+    // Configuration (loaded from storage)
+    let API_BASE = 'http://localhost:8000';
     const SCAN_ON_HOVER = true;
     const HIGHLIGHT_SUSPICIOUS = true;
     
@@ -15,6 +15,23 @@
     let isEnabled = true;
     let scannedLinks = new Map();
     let isScanning = false;
+
+    /**
+     * Load configuration from Chrome storage
+     */
+    async function loadConfig() {
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(['apiUrl'], function(result) {
+                if (result.apiUrl) {
+                    API_BASE = result.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+                    console.log('[Phishing Guard] API URL configured:', API_BASE);
+                } else {
+                    console.log('[Phishing Guard] Using default API URL:', API_BASE);
+                }
+                resolve();
+            });
+        });
+    }
 
     // Colors for different threat levels
     const THREAT_COLORS = {
@@ -29,8 +46,11 @@
     /**
      * Initialize the content script
      */
-    function init() {
+    async function init() {
         console.log('[Phishing Guard] Content script loaded');
+        
+        // Load configuration first
+        await loadConfig();
         
         // Check if extension is enabled
         chrome.storage.sync.get(['enabled'], function(result) {

@@ -41,7 +41,7 @@ from datetime import datetime, timezone
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
@@ -405,18 +405,20 @@ async def batch_analyze_urls(
                 legitimate_count += 1
                 
         except Exception as e:
-            # Add failed result
+            # FAIL-CLOSED: When analysis fails, treat as potential phishing for safety
             results.append(URLAnalysisResponse(
                 url=url,
-                classification=ClassificationResult.LEGITIMATE,
+                classification=ClassificationResult.PHISHING,  # Fail-closed security posture
                 confidence=0.0,
-                risk_score=0.0,
-                explanation=f"Analysis failed: {str(e)}",
+                risk_score=100.0,  # Maximum risk when uncertain
+                explanation=f"Analysis failed with error - blocking for safety: {str(e)}",
                 features={},
-                recommended_action="warn",
+                recommended_action="block",  # Block when we can't verify safety
                 analysis_mode="error",
                 scraped=False
             ))
+            # Log the error for monitoring
+            print(f"[ERROR] Batch analysis failed for URL {url}: {str(e)}")
     
     return BatchURLAnalysisResponse(
         results=results,
@@ -445,6 +447,14 @@ async def extract_features(
     """
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    # Validate URL for security (SSRF protection)
+    is_valid, error_msg = validate_url_for_analysis(url)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"URL validation failed: {error_msg}"
+        )
     
     try:
         features = phishing_service.url_extractor.extract_features(url)

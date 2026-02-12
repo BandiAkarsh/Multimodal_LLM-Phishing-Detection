@@ -1,0 +1,160 @@
+# Pre-commit hooks configuration for Phishing Detection Project
+# Install with: pip install pre-commit && pre-commit install
+#
+# These hooks run automatically before each commit to ensure code quality
+
+repos:
+  # ==========================================
+  # General File Checks
+  # ==========================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Prevent committing to main branch directly
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']
+      
+      # Check for merge conflict markers
+      - id: check-merge-conflict
+      
+      # Check for broken symlinks
+      - id: check-symlinks
+      
+      # Check JSON files are valid
+      - id: check-json
+        files: \.(json|jsonc)$
+      
+      # Check TOML files are valid
+      - id: check-toml
+      
+      # Check YAML files are valid
+      - id: check-yaml
+        files: \.(yaml|yml)$
+      
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        exclude: 
+          - ^docs/
+          - \.md$
+      
+      # Ensure files end with a newline
+      - id: end-of-file-fixer
+      
+      # Prevent adding large files
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      
+      # Check for private keys
+      - id: detect-private-key
+      
+      # Check for AWS credentials
+      - id: detect-aws-credentials
+        args: ['--allow-missing-credentials']
+
+  # ==========================================
+  # Python Code Formatting
+  # ==========================================
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: ['--line-length=100']
+        files: ^(04_inference|05_utils|detect_enhanced\.py|email_scanner\.py)/
+
+  # ==========================================
+  # Python Import Sorting
+  # ==========================================
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black', '--line-length=100']
+        files: ^(04_inference|05_utils|detect_enhanced\.py|email_scanner\.py)/
+
+  # ==========================================
+  # Python Linting
+  # ==========================================
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-bugbear
+          - flake8-comprehensions
+          - flake8-import-order
+        args: 
+          - '--max-line-length=100'
+          - '--extend-ignore=E203,W503'
+          - '--select=E9,F63,F7,F82'
+        files: ^(04_inference|05_utils|detect_enhanced\.py|email_scanner\.py)/
+
+  # ==========================================
+  # Python Type Checking
+  # ==========================================
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-requests
+          - types-PyYAML
+          - types-redis
+        args: ['--ignore-missing-imports', '--show-error-codes']
+        files: ^(04_inference|05_utils)/
+        exclude: ^(tests/|test_.*\.py$)
+
+  # ==========================================
+  # Python Security Scanning
+  # ==========================================
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml', '-f', 'json', '-o', 'bandit-report.json']
+        additional_dependencies: ['bandit[toml]']
+        files: ^(04_inference|05_utils|detect_enhanced\.py|email_scanner\.py)/
+        exclude: ^(tests/|test_.*\.py$)
+
+  # ==========================================
+  # Security Secrets Scanning
+  # ==========================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: 
+          - package.lock.json
+          - poetry.lock
+          - Pipfile.lock
+
+  # ==========================================
+  # Docker Linting
+  # ==========================================
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        args: ['--ignore', 'DL3008', '--ignore', 'DL3013']
+        files: Dockerfile
+
+  # ==========================================
+  # Markdown Linting
+  # ==========================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+        files: \.md$
+
+  # ==========================================
+  # GitHub Actions Validation
+  # ==========================================
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.6.26
+    hooks:
+      - id: actionlint
+        files: ^\.github/workflows/

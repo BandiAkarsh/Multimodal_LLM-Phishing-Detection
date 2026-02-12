@@ -45,3 +45,20 @@ customtkinter>=5.2.0
 python-dotenv>=1.0.0
 colorama>=0.4.6  # CLI colors
 tqdm>=4.65.0     # Progress bars
+
+# Production Enhancements
+redis>=5.0.0     # Distributed rate limiting and caching (optional)
+
+# Development Dependencies (install with: pip install -r requirements-dev.txt)
+# pre-commit>=3.6.0
+# black>=23.12.0
+# isort>=5.13.0
+# flake8>=7.0.0
+# flake8-docstrings>=1.7.0
+# flake8-bugbear>=24.0.0
+# mypy>=1.8.0
+# bandit>=1.7.7
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+# pytest-asyncio>=0.23.0
+# pytest-mock>=3.12.0

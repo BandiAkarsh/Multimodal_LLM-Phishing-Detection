@@ -25,7 +25,36 @@ from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Configuration
-JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+
+def get_jwt_secret() -> str:
+    """
+    Get JWT secret from environment variable.
+    
+    Raises:
+        ValueError: If JWT_SECRET is not set (required for production)
+        
+    Returns:
+        str: JWT secret for token signing
+    """
+    secret = os.getenv("JWT_SECRET")
+    if not secret:
+        # Development fallback - generate and warn
+        import warnings
+        warnings.warn(
+            "JWT_SECRET environment variable not set. Generating temporary secret. "
+            "All tokens will be invalidated on restart. "
+            "Generate a secure secret with: python -c \"import secrets; print(secrets.token_hex(32))\"",
+            RuntimeWarning
+        )
+        return secrets.token_hex(32)
+    
+    if len(secret) < 32:
+        import warnings
+        warnings.warn("JWT_SECRET should be at least 32 characters for security", SecurityWarning)
+    
+    return secret
+
+JWT_SECRET = get_jwt_secret()
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 API_KEYS_FILE = os.path.expanduser("~/.phishing_guard/api_keys.json")
@@ -237,9 +266,13 @@ async def verify_api_key_auth(credentials: HTTPAuthorizationCredentials = Depend
 
 class RateLimiter:
     """
-    Simple in-memory rate limiter (no Redis needed).
+    Rate limiter with Redis support for production.
     
+    Falls back to in-memory storage if Redis is not available.
     Tracks requests per key (IP or user) and enforces limits.
+    
+    For production deployments with multiple workers, set REDIS_URL
+    environment variable to enable shared rate limiting state.
     """
     
     def __init__(self, max_requests: int = 100, window_seconds: int = 60):
@@ -253,6 +286,24 @@ class RateLimiter:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.requests: Dict[str, list] = {}  # key -> list of timestamps
+        self.redis_client = None
+        self._init_redis()
+    
+    def _init_redis(self):
+        """Initialize Redis connection if available."""
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            try:
+                import redis
+                self.redis_client = redis.from_url(redis_url, decode_responses=True)
+                # Test connection
+                self.redis_client.ping()
+                print(f"✓ Rate limiting using Redis: {redis_url}")
+            except Exception as e:
+                print(f"⚠ Redis connection failed, using in-memory rate limiting: {e}")
+                self.redis_client = None
+        else:
+            print("ℹ Redis URL not set, using in-memory rate limiting (not suitable for multi-worker deployments)")
     
     def is_allowed(self, key: str) -> bool:
         """
@@ -264,6 +315,40 @@ class RateLimiter:
         Returns:
             bool: True if allowed, False if rate limited
         """
+        if self.redis_client:
+            return self._is_allowed_redis(key)
+        return self._is_allowed_memory(key)
+    
+    def _is_allowed_redis(self, key: str) -> bool:
+        """Redis-backed rate limiting using sliding window."""
+        import time
+        now = time.time()
+        window_start = now - self.window_seconds
+        
+        redis_key = f"ratelimit:{key}"
+        
+        # Use Redis pipeline for atomic operations
+        pipe = self.redis_client.pipeline()
+        
+        # Remove old entries outside the window
+        pipe.zremrangebyscore(redis_key, 0, window_start)
+        
+        # Count current entries in window
+        pipe.zcard(redis_key)
+        
+        # Add current request timestamp
+        pipe.zadd(redis_key, {str(now): now})
+        
+        # Set expiration on the key
+        pipe.expire(redis_key, self.window_seconds + 1)
+        
+        results = pipe.execute()
+        current_count = results[1]  # zcard result
+        
+        return current_count < self.max_requests
+    
+    def _is_allowed_memory(self, key: str) -> bool:
+        """In-memory rate limiting using sliding window."""
         now = datetime.now(timezone.utc)
         window_start = now - timedelta(seconds=self.window_seconds)
         
@@ -286,6 +371,29 @@ class RateLimiter:
     
     def get_remaining(self, key: str) -> int:
         """Get remaining requests for key."""
+        if self.redis_client:
+            return self._get_remaining_redis(key)
+        return self._get_remaining_memory(key)
+    
+    def _get_remaining_redis(self, key: str) -> int:
+        """Get remaining requests from Redis."""
+        import time
+        now = time.time()
+        window_start = now - self.window_seconds
+        
+        redis_key = f"ratelimit:{key}"
+        
+        # Clean old entries and count
+        pipe = self.redis_client.pipeline()
+        pipe.zremrangebyscore(redis_key, 0, window_start)
+        pipe.zcard(redis_key)
+        results = pipe.execute()
+        
+        current_count = results[1]
+        return max(0, self.max_requests - current_count)
+    
+    def _get_remaining_memory(self, key: str) -> int:
+        """Get remaining requests from memory."""
         now = datetime.now(timezone.utc)
         window_start = now - timedelta(seconds=self.window_seconds)
         
@@ -296,7 +404,8 @@ class RateLimiter:
         return self.max_requests
 
 
-# Global rate limiter instance (in-memory, per-process)
+# Global rate limiter instance
+# Uses Redis if REDIS_URL is set, otherwise falls back to in-memory
 rate_limiter = RateLimiter(max_requests=100, window_seconds=60)
 
 
