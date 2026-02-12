@@ -37,7 +37,7 @@ curl -X POST http://localhost:8000/auth/login \
 **Response:**
 ```json
 {
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "access_token": "<JWT_TOKEN_HERE>",
   "token_type": "bearer",
   "expires_in": 86400
 }
@@ -454,7 +454,7 @@ import requests
 
 # Configuration
 BASE_URL = "http://localhost:8000"
-API_KEY = "pg_your_api_key"
+API_KEY = "<YOUR_API_KEY>"
 
 # Analyze single URL
 response = requests.post(
@@ -487,7 +487,7 @@ for item in results['results']:
 const axios = require('axios');
 
 const BASE_URL = 'http://localhost:8000';
-const API_KEY = 'pg_your_api_key';
+const API_KEY = '<YOUR_API_KEY>';
 
 // Analyze single URL
 async function analyzeURL(url) {
@@ -532,7 +532,7 @@ analyzeURL('https://example.com');
 ```bash
 #!/bin/bash
 
-API_KEY="pg_your_api_key"
+API_KEY="<YOUR_API_KEY>"
 BASE_URL="http://localhost:8000"
 
 # Health check
@@ -559,7 +559,7 @@ curl -s -X POST "$BASE_URL/api/v1/batch-analyze" \
 ### PowerShell
 
 ```powershell
-$ApiKey = "pg_your_api_key"
+$ApiKey = "<YOUR_API_KEY>"
 $BaseUrl = "http://localhost:8000"
 
 # Analyze URL
@@ -596,7 +596,7 @@ async function checkURL(url) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': 'pg_extension_key'
+      'X-API-Key': '<YOUR_API_KEY>'
     },
     body: JSON.stringify({ url })
   });
