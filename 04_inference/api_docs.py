@@ -12,14 +12,14 @@ from fastapi.openapi.utils import get_openapi
 def generate_api_docs(app: FastAPI) -> dict:
     """
     Generate OpenAPI documentation for the API.
-    
+
     Returns:
         dict: OpenAPI specification
     """
-    
+
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     openapi_schema = get_openapi(
         title="Phishing Guard API",
         version="2.0.0",
@@ -115,7 +115,7 @@ For issues and feature requests, please use GitHub Issues.
         """,
         routes=app.routes,
     )
-    
+
     # Add custom documentation for schemas
     openapi_schema["components"]["schemas"]["URLAnalysisResponse"]["description"] = """
 Response from URL analysis containing classification and risk assessment.
@@ -131,7 +131,7 @@ Response from URL analysis containing classification and risk assessment.
 - 31-70: Medium risk (suspicious, review recommended)
 - 71-100: High risk (likely malicious)
     """
-    
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -142,7 +142,7 @@ security_schemes = {
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "JWT token obtained from /auth/login endpoint"
+        "description": "JWT token obtained from /auth/login endpoint",
     }
 }
 
@@ -154,14 +154,10 @@ example_responses = {
         "confidence": 0.98,
         "risk_score": 5,
         "explanation": "Well-known legitimate domain with proper HTTPS configuration",
-        "features": {
-            "url_length": 18,
-            "domain_age_days": 9000,
-            "uses_https": True
-        },
+        "features": {"url_length": 18, "domain_age_days": 9000, "uses_https": True},
         "recommended_action": "allow",
         "analysis_mode": "online",
-        "scraped": True
+        "scraped": True,
     },
     "phishing": {
         "url": "https://paypa1-secure.com/login",
@@ -172,11 +168,11 @@ example_responses = {
         "features": {
             "is_typosquatting": True,
             "impersonated_brand": "paypal",
-            "domain_age_days": 2
+            "domain_age_days": 2,
         },
         "recommended_action": "block",
         "analysis_mode": "online",
-        "scraped": True
+        "scraped": True,
     },
     "ai_generated": {
         "url": "https://login-secure-verify.tk",
@@ -186,12 +182,12 @@ example_responses = {
         "explanation": "AI-generated content patterns detected. Generic urgency language found.",
         "features": {
             "ai_content_score": 0.75,
-            "urgency_keywords": ["verify", "immediately", "secure"]
+            "urgency_keywords": ["verify", "immediately", "secure"],
         },
         "recommended_action": "warn",
         "analysis_mode": "online",
-        "scraped": True
-    }
+        "scraped": True,
+    },
 }
 
 # API endpoint examples
@@ -199,47 +195,33 @@ endpoint_examples = {
     "/auth/login": {
         "summary": "Authenticate and get JWT token",
         "description": "Obtain a JWT token for API access. Token expires after 24 hours.",
-        "request": {
-            "username": "user@example.com",
-            "password": "your_password"
-        },
+        "request": {"username": "user@example.com", "password": "your_password"},
         "response": {
             "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
             "token_type": "bearer",
-            "expires_in": 86400
-        }
+            "expires_in": 86400,
+        },
     },
-    
-"/api/v1/analyze": {
+    "/api/v1/analyze": {
         "summary": "Analyze URL for phishing",
         "description": "Comprehensive URL analysis with multimodal detection",
         "security": [{"bearerAuth": []}],
-        "request": {
-            "url": "https://example.com",
-            "force_scan": False
-        },
-        "responses": example_responses
+        "request": {"url": "https://example.com", "force_scan": False},
+        "responses": example_responses,
     },
-    
-"/api/v1/batch-analyze": {
+    "/api/v1/batch-analyze": {
         "summary": "Analyze multiple URLs",
         "description": "Batch processing for up to 100 URLs",
         "security": [{"bearerAuth": []}],
-        "request": {
-            "urls": [
-                "https://example1.com",
-                "https://example2.com"
-            ]
-        },
+        "request": {"urls": ["https://example1.com", "https://example2.com"]},
         "response": {
             "results": [example_responses["legitimate"]],
             "total_urls": 2,
             "phishing_count": 0,
-            "legitimate_count": 1
-        }
+            "legitimate_count": 1,
+        },
     },
-    
-"/health": {
+    "/health": {
         "summary": "Health check",
         "description": "Check API health and connectivity status",
         "response": {
@@ -248,7 +230,7 @@ endpoint_examples = {
             "model_loaded": True,
             "gpu_available": True,
             "internet_available": True,
-            "analysis_mode": "online"
-        }
-    }
+            "analysis_mode": "online",
+        },
+    },
 }

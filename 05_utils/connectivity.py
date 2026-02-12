@@ -14,17 +14,16 @@ The connectivity check is fast (< 2 seconds) and uses reliable endpoints
 (Cloudflare DNS, Google DNS) to minimize false negatives.
 """
 
-import socket
 import asyncio
-from typing import Tuple
+import socket
 import time
-
+from typing import Tuple
 
 # Reliable endpoints for connectivity testing
 # Using DNS servers because they're always up and respond quickly
 CONNECTIVITY_ENDPOINTS = [
-    ("1.1.1.1", 53),      # Cloudflare DNS (Primary)
-    ("8.8.8.8", 53),      # Google DNS (Fallback 1)
+    ("1.1.1.1", 53),  # Cloudflare DNS (Primary)
+    ("8.8.8.8", 53),  # Google DNS (Fallback 1)
     ("208.67.222.222", 53),  # OpenDNS (Fallback 2)
 ]
 
@@ -37,27 +36,27 @@ HTTP_ENDPOINTS = [
 
 # Cache for connectivity status
 _connectivity_cache = {
-    'is_online': None,
-    'last_check': 0,
-    'cache_duration': 30  # Recheck every 30 seconds
+    "is_online": None,
+    "last_check": 0,
+    "cache_duration": 30,  # Recheck every 30 seconds
 }
 
 
 def check_internet_connection(timeout: float = 2.0, use_cache: bool = True) -> bool:
     """
     Check if internet connection is available.
-    
+
     This function attempts to connect to reliable DNS servers to determine
     if the system has internet access. It uses a socket connection to DNS
     port 53, which is faster than HTTP requests.
-    
+
     Args:
         timeout: Maximum time in seconds to wait for connection (default: 2.0)
         use_cache: Whether to use cached result if recent (default: True)
-    
+
     Returns:
         bool: True if internet is available, False otherwise
-    
+
     Example:
         >>> if check_internet_connection():
         ...     print("Online - will use web scraping")
@@ -67,10 +66,13 @@ def check_internet_connection(timeout: float = 2.0, use_cache: bool = True) -> b
     # Check cache first
     if use_cache:
         current_time = time.time()
-        if (_connectivity_cache['is_online'] is not None and 
-            current_time - _connectivity_cache['last_check'] < _connectivity_cache['cache_duration']):
-            return _connectivity_cache['is_online']
-    
+        if (
+            _connectivity_cache["is_online"] is not None
+            and current_time - _connectivity_cache["last_check"]
+            < _connectivity_cache["cache_duration"]
+        ):
+            return _connectivity_cache["is_online"]
+
     # Try each endpoint until one succeeds
     for host, port in CONNECTIVITY_ENDPOINTS:
         try:
@@ -79,36 +81,36 @@ def check_internet_connection(timeout: float = 2.0, use_cache: bool = True) -> b
             socket.setdefaulttimeout(timeout)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
-            
+
             result = sock.connect_ex((host, port))
             sock.close()
-            
+
             if result == 0:
                 # Connection successful - we're online
-                _connectivity_cache['is_online'] = True
-                _connectivity_cache['last_check'] = time.time()
+                _connectivity_cache["is_online"] = True
+                _connectivity_cache["last_check"] = time.time()
                 return True
-                
+
         except (socket.error, socket.timeout, OSError):
             # This endpoint failed, try the next one
             continue
-    
+
     # All endpoints failed - we're offline
-    _connectivity_cache['is_online'] = False
-    _connectivity_cache['last_check'] = time.time()
+    _connectivity_cache["is_online"] = False
+    _connectivity_cache["last_check"] = time.time()
     return False
 
 
 async def check_internet_connection_async(timeout: float = 2.0) -> bool:
     """
     Async version of internet connectivity check.
-    
+
     This is useful when called from async contexts like the FastAPI service
     or async web scraping functions.
-    
+
     Args:
         timeout: Maximum time in seconds to wait for connection
-    
+
     Returns:
         bool: True if internet is available, False otherwise
     """
@@ -119,7 +121,7 @@ async def check_internet_connection_async(timeout: float = 2.0) -> bool:
 def get_connectivity_status() -> dict:
     """
     Get detailed connectivity status including cache information.
-    
+
     Returns:
         dict: Connectivity status with details
         {
@@ -131,43 +133,43 @@ def get_connectivity_status() -> dict:
     """
     is_online = check_internet_connection()
     current_time = time.time()
-    
+
     return {
-        'is_online': is_online,
-        'last_check': _connectivity_cache['last_check'],
-        'cache_age_seconds': current_time - _connectivity_cache['last_check'],
-        'mode': 'online' if is_online else 'offline',
-        'analysis_type': 'Full Multimodal Scraping' if is_online else 'Static URL Analysis'
+        "is_online": is_online,
+        "last_check": _connectivity_cache["last_check"],
+        "cache_age_seconds": current_time - _connectivity_cache["last_check"],
+        "mode": "online" if is_online else "offline",
+        "analysis_type": "Full Multimodal Scraping" if is_online else "Static URL Analysis",
     }
 
 
 def clear_connectivity_cache():
     """
     Clear the connectivity cache to force a fresh check.
-    
+
     Useful when network conditions change (e.g., WiFi reconnected).
     """
-    _connectivity_cache['is_online'] = None
-    _connectivity_cache['last_check'] = 0
+    _connectivity_cache["is_online"] = None
+    _connectivity_cache["last_check"] = 0
 
 
 def set_cache_duration(seconds: int):
     """
     Set how long connectivity status is cached.
-    
+
     Args:
         seconds: Cache duration in seconds (default is 30)
     """
-    _connectivity_cache['cache_duration'] = seconds
+    _connectivity_cache["cache_duration"] = seconds
 
 
 class ConnectivityMonitor:
     """
     A class for continuous connectivity monitoring.
-    
+
     Useful for long-running services like imap_scanner.py that need
     to adapt to changing network conditions.
-    
+
     Example:
         >>> monitor = ConnectivityMonitor()
         >>> if monitor.is_online:
@@ -175,11 +177,11 @@ class ConnectivityMonitor:
         ... else:
         ...     result = service.analyze_url(url)  # Static fallback
     """
-    
+
     def __init__(self, check_interval: int = 30):
         """
         Initialize the connectivity monitor.
-        
+
         Args:
             check_interval: How often to check connectivity (seconds)
         """
@@ -187,7 +189,7 @@ class ConnectivityMonitor:
         self._is_online = check_internet_connection()
         self._last_check = time.time()
         self._status_changed_callback = None
-    
+
     @property
     def is_online(self) -> bool:
         """Check if we're currently online, refreshing if needed."""
@@ -196,27 +198,27 @@ class ConnectivityMonitor:
             old_status = self._is_online
             self._is_online = check_internet_connection(use_cache=False)
             self._last_check = current_time
-            
+
             # Notify if status changed
             if old_status != self._is_online and self._status_changed_callback:
                 self._status_changed_callback(self._is_online)
-        
+
         return self._is_online
-    
+
     @property
     def mode(self) -> str:
         """Get current mode as string."""
-        return 'online' if self.is_online else 'offline'
-    
+        return "online" if self.is_online else "offline"
+
     def on_status_change(self, callback):
         """
         Register a callback for when connectivity status changes.
-        
+
         Args:
             callback: Function that takes a bool (is_online) as argument
         """
         self._status_changed_callback = callback
-    
+
     def force_refresh(self) -> bool:
         """Force an immediate connectivity check."""
         self._is_online = check_internet_connection(use_cache=False)
@@ -228,15 +230,15 @@ class ConnectivityMonitor:
 if __name__ == "__main__":
     print("Testing Internet Connectivity...")
     print("-" * 40)
-    
+
     status = get_connectivity_status()
-    
-    if status['is_online']:
+
+    if status["is_online"]:
         print("[ONLINE] Internet connection is available")
         print(f"  Mode: {status['analysis_type']}")
     else:
         print("[OFFLINE] No internet connection detected")
         print(f"  Mode: {status['analysis_type']}")
-    
+
     print("-" * 40)
     print("Connectivity checker is working correctly!")
