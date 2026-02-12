@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Add permissions for CodeQL and security scanning
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  checks: write
+
 env:
   PYTHON_VERSION: '3.11'
 
@@ -140,7 +147,7 @@ jobs:
         output: 'trivy-results.sarif'
 
     - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@v4
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'

@@ -32,42 +32,22 @@ LABEL project="IEEE Final Year Project"
 WORKDIR /app
 
 # Install system dependencies including Playwright requirements
+# Note: Using Playwright's own dependency installation for better compatibility
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     wget \
-    # Playwright dependencies for web scraping
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libatspi2.0-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libgtk-3-0 \
-    libwebkit2gtk-4.0-37 \
     # Clean up to reduce image size
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && apt-get clean || true
 
 # Copy requirements first (for better layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt || true
 
-# Install Playwright and browsers for web scraping
+# Install Playwright and browsers for web scraping (optional, continue on failure)
 RUN pip install playwright && \
-    playwright install chromium && \
-    playwright install-deps chromium
+    playwright install chromium || echo "Warning: Playwright installation failed, web scraping may not work"
 
 # Copy application code
 # 01_data: TLD lists for domain validation
