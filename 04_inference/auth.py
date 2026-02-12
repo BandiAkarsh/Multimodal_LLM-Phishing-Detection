@@ -65,6 +65,10 @@ _JWT_SECRET: Optional[str] = None
 # API keys file location
 API_KEYS_FILE = os.path.expanduser("~/.phishing_guard/api_keys.json")
 
+# JWT configuration
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
+
 # Security scheme for FastAPI
 security = HTTPBearer()
 
