@@ -83,14 +83,13 @@ venv.bak/
 01_data/splits/
 .tmp/
 
-# Model files (large)
-02_models/
+# Model files (large) - keep 02_models for Docker but exclude large individual model files
 .cache/
 *.h5
 *.pkl
-*.joblib
 *.pth
 *.pt
+# Note: 02_models/ directory is NOT ignored - required for ML functionality
 
 # Logs
 08_logs/
