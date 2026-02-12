@@ -43,6 +43,7 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+.~lock.*
 
 # Test files (now in tests/)
 exam.eml
