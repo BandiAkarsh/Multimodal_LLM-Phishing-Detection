@@ -104,8 +104,11 @@ class AuthManager:
         if os.path.exists(API_KEYS_FILE):
             try:
                 with open(API_KEYS_FILE, "r") as f:
-                    return json.load(f)
-            except (IOError, JSONDecodeError) as e:
+                    data = f.read()
+                    if data.strip():
+                        return json.loads(data)
+                    return {}
+            except (IOError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to load API keys from {API_KEYS_FILE}: {e}")
                 return {}
             except Exception as e:
