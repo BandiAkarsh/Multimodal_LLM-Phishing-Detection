@@ -323,14 +323,14 @@ curl -X POST http://localhost:8000/auth/login \
 
 # Response
 {
-  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "access_token": "<JWT_TOKEN_HERE>",
   "token_type": "bearer",
   "expires_in": 86400
 }
 
 # Use token
 curl http://localhost:8000/api/v1/analyze \
-  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc..."
+  -H "Authorization: Bearer <JWT_TOKEN_HERE>"
 ```
 
 **JWT Configuration:**
@@ -351,14 +351,14 @@ curl -X POST http://localhost:8000/auth/api-key \
 
 # Response
 {
-  "api_key": "pg_aBcD123...",
+  "api_key": "<YOUR_API_KEY>",
   "name": "production-service",
   "created_at": "2024-01-01T00:00:00Z"
 }
 
 # Use API key
 curl http://localhost:8000/api/v1/analyze \
-  -H "X-API-Key: pg_aBcD123..."
+  -H "X-API-Key: <YOUR_API_KEY>"
 ```
 
 ### Authentication Flow

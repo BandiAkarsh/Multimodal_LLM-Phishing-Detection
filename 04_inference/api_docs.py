@@ -197,7 +197,7 @@ endpoint_examples = {
         "description": "Obtain a JWT token for API access. Token expires after 24 hours.",
         "request": {"username": "user@example.com", "password": "your_password_here"},
         "response": {
-            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "access_token": "<JWT_TOKEN_HERE>",
             "token_type": "bearer",
             "expires_in": 86400,
         },

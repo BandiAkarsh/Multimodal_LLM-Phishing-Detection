@@ -46,7 +46,7 @@ curl -X POST http://localhost:8000/auth/login \
 **Use Token:**
 ```bash
 curl http://localhost:8000/api/v1/analyze \
-  -H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+  -H "Authorization: Bearer <JWT_TOKEN_HERE>"
 ```
 
 ### 2. API Key (Service-to-Service)
@@ -62,7 +62,7 @@ curl -X POST http://localhost:8000/auth/api-key \
 **Response:**
 ```json
 {
-  "api_key": "pg_aBcD123XyZ789",
+  "api_key": "<YOUR_API_KEY>",
   "name": "production-service",
   "created_at": "2024-01-15T10:30:00Z"
 }
@@ -71,7 +71,7 @@ curl -X POST http://localhost:8000/auth/api-key \
 **Use API Key:**
 ```bash
 curl http://localhost:8000/api/v1/analyze \
-  -H "X-API-Key: pg_aBcD123XyZ789"
+  -H "X-API-Key: <YOUR_API_KEY>"
 ```
 
 ## 📡 Endpoints

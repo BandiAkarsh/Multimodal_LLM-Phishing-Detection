@@ -201,7 +201,7 @@ async def login(credentials: dict):
 
     Returns:
         {
-            "access_token": "eyJhbGciOiJIUzI1Ni...",
+            "access_token": "<JWT_TOKEN_HERE>",
             "token_type": "bearer",
             "expires_in": 86400
         }
@@ -239,7 +239,7 @@ async def generate_api_key(
 
     Returns:
         {
-            "api_key": "pg_...",
+            "api_key": "<YOUR_API_KEY>",
             "message": "Save this key - it will not be shown again"
         }
     """
