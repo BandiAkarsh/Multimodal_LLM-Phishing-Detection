@@ -89,9 +89,9 @@ The API automatically selects the best analysis method:
 python 04_inference/api.py
 
 # 2. Get authentication token
-curl -X POST http://localhost:8000/auth/login \\
-  -H "Content-Type: application/json" \\
-  -d '{"username": "user", "password": "pass"}'
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "<YOUR_USERNAME>", "password": "<YOUR_PASSWORD>"}'
 
 # 3. Scan a URL
 curl -X POST http://localhost:8000/api/v1/analyze \\

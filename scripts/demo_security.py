@@ -27,7 +27,7 @@ def demo_encrypt_passwords():
     print("  Content (visible to anyone with file access):")
     print('  {')
     print('    "email": "user@gmail.com",')
-    print('    "password": "super_secret_password_123",  ← VISIBLE!')
+    print('    "password": "<YOUR_PASSWORD_HERE>",  ← VISIBLE!')
     print('    "server": "imap.gmail.com"')
     print('  }')
     

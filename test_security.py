@@ -259,7 +259,10 @@ def test_api_security():
         
         # Test 5.3: Login
         print("\n[5.3] Testing authentication...")
-        response = client.post("/auth/login", json={"username": "test@example.com", "password": "test123"})
+        response = client.post("/auth/login", json={
+            "username": os.getenv("TEST_USERNAME", "test@example.com"), 
+            "password": os.getenv("TEST_PASSWORD", "test123")
+        })
         if response.status_code == 200:
             token = response.json().get("access_token")
             print(f"  ✓ Login successful, token received")

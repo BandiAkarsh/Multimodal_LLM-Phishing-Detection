@@ -196,7 +196,7 @@ async def login(credentials: dict):
     Request body:
         {
             "username": "your-email@example.com",
-            "password": "your-password"
+            "password": "<YOUR_PASSWORD>"
         }
 
     Returns:

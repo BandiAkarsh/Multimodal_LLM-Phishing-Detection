@@ -108,7 +108,7 @@ class SecureConfigManager:
         Example:
             config = {
                 "email": "user@gmail.com",
-                "password": "secret_password",
+                "password": "<YOUR_EMAIL_PASSWORD>",
                 "server": "imap.gmail.com"
             }
             manager.encrypt_config(config)
@@ -247,7 +247,7 @@ class SecureConfigManager:
             updates: Dictionary with fields to update
 
         Example:
-            manager.update_config({"password": "new_password"})
+            manager.update_config({"password": "<NEW_PASSWORD>"})
         """
         # Decrypt current config
         config = self.decrypt_config()
@@ -334,7 +334,7 @@ def demo():
     print("\n[2] Creating new encrypted config...")
     test_config = {
         "email": "demo@example.com",
-        "password": "demo_password_123",
+        "password": "<DEMO_PASSWORD_FOR_TESTING>",
         "server": "imap.gmail.com",
         "port": 993,
         "use_ssl": True,
@@ -350,7 +350,7 @@ def demo():
 
     # Test update
     print("\n[4] Updating password...")
-    manager.update_config({"password": "new_secure_password"})
+    manager.update_config({"password": "<NEW_SECURE_PASSWORD>"})
 
     # Verify update
     new_password = manager.get_config("password")
