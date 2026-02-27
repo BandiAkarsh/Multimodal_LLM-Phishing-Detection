@@ -1,168 +1,205 @@
-# Phishing Guard - Browser Extension
+# Phishing Guard - Browser Extension (Standalone)
 
-Real-time phishing detection for your browser. Protects against malicious links in web pages.
+**⚡ Works Without Any Installation!** Just add the extension to your browser and it works immediately.
 
-## Features
+## What's New - Standalone Mode
 
-- **Automatic Link Scanning**: Scans all links on web pages as you browse
-- **Visual Threat Indicators**: Color-coded highlighting of suspicious links
-  - 🟢 Green: Safe (legitimate)
-  - 🟠 Orange: AI-generated phishing
-  - 🔴 Red: Traditional phishing or phishing kit
-- **Real-time Notifications**: Alerts when high-risk threats are detected
-- **Quick Scan**: Manual URL scanning via popup
-- **Statistics**: Track links scanned and threats blocked
+This extension now works **completely standalone** - no need to install Python, run servers, or configure anything!
 
-## Installation
+### How It Works
+- **JavaScript-based detection** runs entirely in your browser
+- **Real-time scanning** of all links on web pages
+- **Instant protection** - no setup required
+- **Privacy-first** - your data never leaves your computer
 
-### Chrome/Chromium/Brave
+---
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in top right)
-3. Click "Load unpacked"
-4. Select the `browser-extension` folder
-5. Extension is now installed!
+## 🚀 Installation (30 seconds)
+
+### Chrome / Brave / Edge
+
+1. **Download** this `browser-extension` folder
+2. Open your browser and go to: `chrome://extensions/`
+3. **Enable "Developer mode"** (toggle in top right)
+4. Click **"Load unpacked"**
+5. Select the `browser-extension` folder
+6. Done! 🎉
 
 ### Firefox
 
-1. Open Firefox and navigate to `about:debugging`
-2. Click "This Firefox"
-3. Click "Load Temporary Add-on"
-4. Select any file in the `browser-extension` folder
+1. Open Firefox and go to: `about:debugging`
+2. Click **"This Firefox"**
+3. Click **"Load Temporary Add-on"**
+4. Select `manifest.json` from the extension folder
 
-## Configuration
+---
 
-The extension connects to your local Phishing Guard API (default: http://localhost:8000).
+## ✅ Verification - Test It Now!
 
-### First-time Setup
+Open this test page in your browser after installing:
+```
+file:///path/to/browser-extension/test-page.html
+```
 
-1. Ensure the Phishing Guard API is running:
-   ```bash
-   cd /path/to/phishing_detection_project
-   python 04_inference/api.py
-   ```
+Or visit any website with links - you'll see them highlighted automatically!
 
-2. Click the extension icon in your browser
-3. The extension will automatically authenticate with the API
+---
 
-### Changing API Endpoint
+## 🎨 What You'll See
 
-1. Click the extension icon
-2. Go to "Advanced Settings"
-3. Update the API URL field
-4. Click "Save"
+### Automatic Link Highlighting
+Every link on every webpage gets color-coded:
 
-## Usage
+| Color | Meaning | Safe? |
+|-------|---------|-------|
+| 🟢 **Green border** | Safe/Legitimate | ✅ Click freely |
+| 🟠 **Orange border** | Suspicious | ⚠️ Be careful |
+| 🔴 **Red border** | Phishing detected | 🚫 Don't click! |
+| 🔵 **Blue border** | Scanning... | ⏳ Wait a moment |
+
+### Extension Popup
+Click the extension icon to see:
+- **Quick Scan**: Test any URL manually
+- **Current Page Stats**: Links scanned and threats found
+- **Protection Toggle**: Enable/disable scanning
+
+---
+
+## 🧪 Test URLs
+
+Try these URLs in the Quick Scan feature:
+
+**Safe URLs:**
+- `https://google.com` → Should show GREEN
+- `https://github.com` → Should show GREEN
+- `https://microsoft.com` → Should show GREEN
+
+**Phishing URLs:**
+- `http://paypa1.com` → Should show RED (PayPal fake)
+- `http://amaz0n-security.com` → Should show RED (Amazon fake)
+- `http://g00gle-login.com` → Should show RED (Google fake)
+
+---
+
+## 🔧 Features
 
 ### Automatic Protection
+- ✅ Scans ALL links on every webpage automatically
+- ✅ Highlights dangerous links in real-time
+- ✅ Detects typosquatting (fake brands)
+- ✅ Identifies suspicious patterns
+- ✅ Shows desktop notifications for threats
 
-Once installed and configured, the extension automatically:
-- Scans all links on every web page you visit
-- Highlights suspicious links with color coding
-- Shows notifications for high-risk threats
+### Manual Scanning
+- ✅ Quick Scan any URL
+- ✅ Get instant risk assessment
+- ✅ View confidence scores
+- ✅ See detailed threat indicators
 
-### Manual Scan
+### Privacy & Security
+- ✅ **100% offline** - works without internet
+- ✅ **No data collection** - everything stays local
+- ✅ **No API calls** - runs in your browser only
+- ✅ **Open source** - transparent detection logic
 
-1. Click the extension icon
-2. Enter a URL in the "Quick Scan" field
-3. Click "Scan"
-4. View the detailed analysis result
+---
 
-### View Statistics
+## 🛠️ How It Works (Technical)
 
-The popup shows:
-- Total links scanned on current page
-- Number of threats detected
-- API connection status
+The extension uses **heuristic analysis** to detect phishing:
 
-## Visual Indicators
+1. **Typosquatting Detection**: Identifies fake brands (paypa1.com, amaz0n.com)
+2. **URL Analysis**: Checks for suspicious patterns:
+   - Missing HTTPS
+   - IP addresses instead of domains
+   - Suspicious TLDs (.tk, .ml, .xyz)
+   - Suspicious keywords (login, verify, secure)
+   - URL length and structure
+3. **Risk Scoring**: Calculates 0-100% risk score
+4. **Classification**: Labels as Safe, Suspicious, or Phishing
 
-Links on web pages are highlighted based on their risk level:
+---
 
-| Color | Meaning | Action |
-|-------|---------|--------|
-| 🟢 Green underline | Legitimate | Safe to click |
-| 🟠 Orange dashed border | AI-generated phishing | Use caution |
-| 🔴 Red solid border | Phishing / Phishing kit | Do not click |
-| 🔵 Blue dotted underline | Scanning | Wait for result |
+## 📊 Comparison: Old vs New
 
-## Privacy & Security
+| Feature | Old Version | New Standalone |
+|---------|-------------|----------------|
+| Setup Time | 10+ minutes | 30 seconds |
+| Requires Python | ✅ Yes | ❌ No |
+| Requires API Server | ✅ Yes | ❌ No |
+| Requires Dependencies | ✅ Yes | ❌ No |
+| Works Offline | ❌ No | ✅ Yes |
+| Installation Complexity | Hard | Easy |
+| User-Friendly | ❌ No | ✅ Yes |
 
-- No browsing history leaves your computer
-- All scanning happens via your local API
-- No data sent to third parties
-- Credentials stored securely in browser storage
+---
 
-## Troubleshooting
+## 🚧 Limitations of Standalone Mode
 
-### "API Not Connected"
+The standalone version uses **rule-based detection** which is fast and effective for:
+- ✅ Typosquatting attacks
+- ✅ Suspicious URL patterns
+- ✅ Known phishing indicators
+- ✅ Basic ML model features
 
-1. Check if the Phishing Guard API is running:
-   ```bash
-   curl http://localhost:8000/health
-   ```
+For **advanced ML-based detection** (optional):
+- Install the Python backend (see main project)
+- Extension can connect to local API for enhanced accuracy
+- This is optional - standalone mode works great on its own!
 
-2. Verify the API URL in extension settings
+---
 
-3. Check browser console for errors (F12 → Console)
+## 🔄 Optional: Enhanced Mode (Advanced Users)
 
-### Links Not Being Highlighted
+If you want ML-powered detection, you can:
 
-1. Ensure "Enable Protection" toggle is ON
+1. Install the full project (see main README)
+2. Run the API: `python 04_inference/api.py`
+3. Extension will automatically use it if available
+
+**But this is completely optional!** The standalone version works great for everyday protection.
+
+---
+
+## 🐛 Troubleshooting
+
+### Extension not working?
+1. Check if it's enabled: `chrome://extensions/`
+2. Refresh the webpage
+3. Check browser console (F12 → Console) for errors
+
+### Links not highlighted?
+1. Click extension icon → Ensure "Enable Protection" is ON
 2. Refresh the page
-3. Check if site is in trusted domains list
+3. Wait 2-3 seconds for scanning to complete
 
-### Authentication Errors
+### False positives?
+- Some legitimate sites might be flagged (rare)
+- You can disable protection on trusted sites
+- Report false positives in GitHub issues
 
-1. Clear extension data: chrome://extensions/ → Phishing Guard → Clear data
-2. Reload the extension
-3. Re-authenticate with the API
+---
 
-## Development
+## 📱 Browser Compatibility
 
-### File Structure
+- ✅ Chrome 88+
+- ✅ Brave 1.20+
+- ✅ Edge 88+
+- ✅ Opera 74+
+- ⚠️ Firefox (Manifest V2 version needed)
 
-```
-browser-extension/
-├── manifest.json          # Extension manifest (v3)
-├── background.js          # Service worker
-├── content.js             # Content script (runs on pages)
-├── popup.html             # Popup UI
-├── popup.css              # Popup styles
-├── popup.js               # Popup logic
-├── styles.css             # Content script styles
-└── images/                # Icons
-    ├── icon16.png
-    ├── icon48.png
-    └── icon128.png
-```
+---
 
-### Building Icons
+## 🤝 Contributing
 
-Create icons in sizes 16x16, 48x48, and 128x128 pixels:
-- Format: PNG
-- Transparent background recommended
-- Place in `images/` folder
+This is part of the Phishing Detection Project. See main repository for:
+- Source code
+- Full documentation
+- Issue tracker
+- Contributing guidelines
 
-### Testing
+---
 
-1. Load extension in developer mode
-2. Open browser console to see logs
-3. Test on various websites
-4. Check popup functionality
+**Enjoy safe browsing! 🛡️**
 
-## Compatibility
-
-- Chrome 88+
-- Edge 88+
-- Brave 1.20+
-- Opera 74+
-- Firefox 109+ (Manifest V2 version needed)
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Support
-
-For issues and feature requests, please use the GitHub issue tracker.
+*Version 2.0 - Standalone Edition*

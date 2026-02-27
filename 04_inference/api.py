@@ -207,7 +207,7 @@ async def login(credentials: dict):
         }
     """
     # Credential validation
-    username = credentials.get("username", "")
+    username = credentials.get("username", "").strip()
     password = credentials.get("password", "")
 
     # Validate credentials are provided
@@ -215,6 +215,13 @@ async def login(credentials: dict):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail="Username and password required"
+        )
+    
+    # Verify credentials (SECURITY FIX)
+    if not auth_manager.verify_credentials(username, password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password"
         )
 
     # Generate token

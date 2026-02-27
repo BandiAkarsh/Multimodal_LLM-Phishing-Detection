@@ -1,363 +1,220 @@
 /**
- * Phishing Guard - Popup Script
- * Handles user interactions in the browser extension popup
+ * Phishing Guard - Popup Script (Standalone Mode)
+ * Works without external API
  */
 
-(function() {
-    'use strict';
-
-    // Default API configuration
-    const DEFAULT_API_URL = 'http://localhost:8000';
-    let currentApiUrl = DEFAULT_API_URL;
-
-    /**
-     * Initialize popup when DOM is ready
-     */
-    document.addEventListener('DOMContentLoaded', function() {
-        initializePopup();
-    });
-
-    /**
-     * Initialize popup functionality
-     */
-    function initializePopup() {
-        // Load saved settings
-        loadSettings();
-
-        // Set up event listeners
-        setupEventListeners();
-
-        // Get current tab info
-        getCurrentTabInfo();
-
-        // Check API status
-        checkApiStatus();
-    }
-
-    /**
-     * Load settings from Chrome storage
-     */
-    function loadSettings() {
-        chrome.storage.sync.get(['enabled', 'notifications', 'apiUrl'], function(result) {
-            // Set toggle states
-            document.getElementById('toggleEnabled').checked = result.enabled !== false;
-            document.getElementById('toggleNotifications').checked = result.notifications !== false;
-
-            // Set API URL
-            if (result.apiUrl) {
-                currentApiUrl = result.apiUrl;
-                document.getElementById('apiUrlInput').value = result.apiUrl;
+// Standalone detector for popup
+const detector = {
+    whitelist: new Set([
+        'google.com', 'youtube.com', 'facebook.com', 'amazon.com',
+        'twitter.com', 'instagram.com', 'linkedin.com', 'github.com',
+        'microsoft.com', 'apple.com', 'netflix.com', 'paypal.com'
+    ]),
+    
+    brands: {
+        'paypal': ['paypal.com'], 'amazon': ['amazon.com'], 'google': ['google.com'],
+        'facebook': ['facebook.com'], 'apple': ['apple.com'], 'microsoft': ['microsoft.com'],
+        'netflix': ['netflix.com'], 'chase': ['chase.com'], 'citi': ['citi.com']
+    },
+    
+    analyze(url) {
+        try {
+            const urlObj = new URL(url);
+            const domain = urlObj.hostname.toLowerCase();
+            
+            // Check whitelist
+            for (const trusted of this.whitelist) {
+                if (domain === trusted || domain.endsWith('.' + trusted)) {
+                    return { classification: 'legitimate', confidence: 1.0, riskScore: 0 };
+                }
+            }
+            
+            let riskScore = 0;
+            const issues = [];
+            
+            // Check typosquatting
+            const base = domain.split('.')[0];
+            for (const [brand, legitDomains] of Object.entries(this.brands)) {
+                if (base.includes(brand)) {
+                    const isLegit = legitDomains.some(l => domain === l || domain.endsWith('.' + l));
+                    if (!isLegit) {
+                        riskScore += 60;
+                        issues.push(`Brand impersonation: ${brand}`);
+                    }
+                }
+            }
+            
+            // Check features
+            if (!url.startsWith('https://')) { riskScore += 15; issues.push('No HTTPS'); }
+            if (url.length > 75) { riskScore += 10; issues.push('Long URL'); }
+            if (/^\d+\.\d+\.\d+\.\d+$/.test(domain)) { riskScore += 25; issues.push('IP address'); }
+            if (url.includes('@')) { riskScore += 20; issues.push('Contains @ symbol'); }
+            if (['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz'].some(tld => domain.endsWith(tld))) {
+                riskScore += 20; issues.push('Suspicious TLD');
+            }
+            
+            riskScore = Math.min(100, riskScore);
+            
+            let classification, confidence;
+            if (riskScore >= 70) {
+                classification = 'phishing'; confidence = 0.85;
+            } else if (riskScore >= 40) {
+                classification = 'phishing'; confidence = 0.70;
+            } else if (riskScore >= 20) {
+                classification = 'suspicious'; confidence = 0.60;
             } else {
-                document.getElementById('apiUrlInput').value = DEFAULT_API_URL;
+                classification = 'legitimate'; confidence = 0.85;
             }
-        });
-    }
-
-    /**
-     * Set up event listeners
-     */
-    function setupEventListeners() {
-        // Toggle protection
-        document.getElementById('toggleEnabled').addEventListener('change', function(e) {
-            const enabled = e.target.checked;
-            chrome.storage.sync.set({ enabled: enabled }, function() {
-                // Notify content script
-                chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-                    if (tabs[0]) {
-                        chrome.tabs.sendMessage(tabs[0].id, {
-                            action: 'toggle',
-                            enabled: enabled
-                        });
-                    }
-                });
-            });
-        });
-
-        // Toggle notifications
-        document.getElementById('toggleNotifications').addEventListener('change', function(e) {
-            const notifications = e.target.checked;
-            chrome.storage.sync.set({ notifications: notifications });
-        });
-
-        // Save API URL
-        document.getElementById('saveApiUrl').addEventListener('click', saveApiUrl);
-
-        // Quick scan button
-        document.getElementById('scanButton').addEventListener('click', performQuickScan);
-
-        // Enter key on URL input
-        document.getElementById('urlInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performQuickScan();
-            }
-        });
-
-        // Open settings button
-        document.getElementById('openSettings').addEventListener('click', function() {
-            chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
-        });
-
-        // View history button
-        document.getElementById('viewHistory').addEventListener('click', function() {
-            chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
-        });
-    }
-
-    /**
-     * Save API URL configuration
-     */
-    function saveApiUrl() {
-        const urlInput = document.getElementById('apiUrlInput');
-        const statusEl = document.getElementById('apiUrlStatus');
-        let url = urlInput.value.trim();
-
-        // Validate URL
-        if (!url) {
-            url = DEFAULT_API_URL;
-        }
-
-        // Remove trailing slash
-        url = url.replace(/\/$/, '');
-
-        // Basic URL validation
-        try {
-            new URL(url);
+            
+            return { classification, confidence, riskScore, issues };
         } catch (e) {
-            showStatus(statusEl, 'Invalid URL format', 'error');
-            return;
+            return { classification: 'unknown', confidence: 0, riskScore: 50, issues: ['Invalid URL'] };
         }
+    }
+};
 
-        // Test connection
-        showStatus(statusEl, 'Testing connection...', 'info');
+// Initialize popup when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    initializePopup();
+});
 
-        fetch(`${url}/health`)
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
+function initializePopup() {
+    // Set mode indicator
+    document.getElementById('statusIndicator').innerHTML = 
+        '<span style="color: #22c55e;">●</span> <span>Standalone Mode</span>';
+    
+    // Load current tab info
+    getCurrentTabInfo();
+    
+    // Setup event listeners
+    document.getElementById('scanButton').addEventListener('click', performQuickScan);
+    document.getElementById('urlInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') performQuickScan();
+    });
+    document.getElementById('toggleEnabled').addEventListener('change', toggleProtection);
+    
+    // Load statistics
+    loadStatistics();
+}
+
+function getCurrentTabInfo() {
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs[0]) {
+            document.getElementById('currentUrl').textContent = tabs[0].url;
+            
+            // Get scan results for current page
+            chrome.tabs.sendMessage(tabs[0].id, {action: 'getResults'}, function(response) {
+                if (response && response.results) {
+                    const count = Object.keys(response.results).length;
+                    const threats = Object.values(response.results).filter(r => 
+                        r.classification === 'phishing' || r.classification === 'suspicious'
+                    ).length;
+                    
+                    document.getElementById('pageStats').innerHTML = 
+                        `<span>Links scanned: ${count}</span> | <span style="color: ${threats > 0 ? '#ef4444' : '#22c55e'}">Threats: ${threats}</span>`;
+                } else {
+                    document.getElementById('pageStats').innerHTML = '<span>Refresh page to scan</span>';
                 }
-                throw new Error('Connection failed');
-            })
-            .then(data => {
-                // Save the URL
-                chrome.storage.sync.set({ apiUrl: url }, function() {
-                    currentApiUrl = url;
-                    showStatus(statusEl, '✓ Connected successfully!', 'success');
-
-                    // Update API status indicator
-                    updateApiStatus(true);
-                });
-            })
-            .catch(error => {
-                console.error('API connection test failed:', error);
-                showStatus(statusEl, '✗ Cannot connect to API', 'error');
-                updateApiStatus(false);
             });
+        }
+    });
+}
+
+function performQuickScan() {
+    const urlInput = document.getElementById('urlInput');
+    const resultBox = document.getElementById('scanResult');
+    const url = urlInput.value.trim();
+    
+    if (!url) {
+        resultBox.innerHTML = '<p style="color: #ef4444;">Please enter a URL</p>';
+        resultBox.style.display = 'block';
+        return;
     }
+    
+    // Show loading
+    document.getElementById('scanButton').textContent = 'Scanning...';
+    
+    // Scan using standalone detector
+    setTimeout(() => {
+        const result = detector.analyze(url);
+        displayResult(resultBox, result);
+        document.getElementById('scanButton').textContent = 'Scan';
+    }, 500);
+}
 
-    /**
-     * Show status message
-     */
-    function showStatus(element, message, type) {
-        element.textContent = message;
-        element.className = 'status-message ' + type;
-
-        // Clear after 5 seconds
-        setTimeout(() => {
-            element.textContent = '';
-            element.className = 'status-message';
-        }, 5000);
+function displayResult(container, result) {
+    const colors = {
+        'legitimate': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
+        'phishing': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+        'suspicious': { bg: '#ffedd5', border: '#f97316', text: '#9a3412' },
+        'unknown': { bg: '#f3f4f6', border: '#6b7280', text: '#374151' }
+    };
+    
+    const style = colors[result.classification] || colors.unknown;
+    
+    let html = `
+        <div style="
+            background: ${style.bg};
+            border: 2px solid ${style.border};
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        ">
+            <h3 style="color: ${style.text}; margin: 0 0 8px 0; text-transform: uppercase;">
+                ${result.classification}
+            </h3>
+            <p style="margin: 4px 0;"><strong>Risk Score:</strong> ${result.riskScore}%</p>
+            <p style="margin: 4px 0;"><strong>Confidence:</strong> ${(result.confidence * 100).toFixed(0)}%</p>
+    `;
+    
+    if (result.issues && result.issues.length > 0) {
+        html += `<p style="margin: 8px 0 0 0; font-size: 12px;"><strong>Indicators:</strong> ${result.issues.join(', ')}</p>`;
     }
+    
+    html += '</div>';
+    
+    container.innerHTML = html;
+    container.style.display = 'block';
+}
 
-    /**
-     * Check API status
-     */
-    function checkApiStatus() {
-        fetch(`${currentApiUrl}/health`, { method: 'GET' })
-            .then(response => {
-                updateApiStatus(response.ok);
-            })
-            .catch(() => {
-                updateApiStatus(false);
+function toggleProtection(e) {
+    const enabled = e.target.checked;
+    
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                action: 'toggle',
+                enabled: enabled
             });
-    }
-
-    /**
-     * Update API status indicator
-     */
-    function updateApiStatus(isConnected) {
-        const indicator = document.getElementById('statusIndicator');
-        const dot = indicator.querySelector('.status-dot');
-        const text = indicator.querySelector('.status-text');
-
-        if (isConnected) {
-            indicator.classList.remove('disconnected');
-            indicator.classList.add('connected');
-            dot.style.backgroundColor = '#22c55e';
-            text.textContent = 'Connected';
-        } else {
-            indicator.classList.remove('connected');
-            indicator.classList.add('disconnected');
-            dot.style.backgroundColor = '#ef4444';
-            text.textContent = 'Disconnected';
         }
-    }
+    });
+    
+    // Show feedback
+    const status = document.getElementById('statusIndicator');
+    status.innerHTML = enabled ? 
+        '<span style="color: #22c55e;">●</span> <span>Protection Enabled</span>' :
+        '<span style="color: #ef4444;">●</span> <span>Protection Disabled</span>';
+}
 
-    /**
-     * Get current tab information
-     */
-    function getCurrentTabInfo() {
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-            if (tabs[0]) {
-                const url = tabs[0].url;
-                document.getElementById('currentUrl').textContent = url;
-
-                // Request scan results from content script
-                chrome.tabs.sendMessage(tabs[0].id, { action: 'getResults' }, function(response) {
-                    if (response && response.results) {
-                        updatePageStats(response.results);
-                    }
-                });
-            }
-        });
-    }
-
-    /**
-     * Update page statistics display
-     */
-    function updatePageStats(results) {
-        let scannedCount = 0;
-        let threatCount = 0;
-
-        for (const [url, result] of Object.entries(results)) {
-            scannedCount++;
-            if (result.classification && result.classification !== 'legitimate') {
-                threatCount++;
-            }
-        }
-
-        document.getElementById('statScanned').textContent = scannedCount;
-        document.getElementById('statThreats').textContent = threatCount;
-
-        const statsEl = document.getElementById('pageStats');
-        if (threatCount > 0) {
-            statsEl.innerHTML = `<span class="threat-badge">⚠️ ${threatCount} potential threats detected</span>`;
-        } else {
-            statsEl.innerHTML = '<span class="safe-badge">✓ No threats detected</span>';
-        }
-    }
-
-    /**
-     * Perform quick scan on user-entered URL
-     */
-    function performQuickScan() {
-        const urlInput = document.getElementById('urlInput');
-        const scanButton = document.getElementById('scanButton');
-        const resultBox = document.getElementById('scanResult');
-        const url = urlInput.value.trim();
-
-        if (!url) {
-            showResult(resultBox, 'Please enter a URL', 'error');
-            return;
-        }
-
-        // Validate URL
-        try {
-            new URL(url);
-        } catch (e) {
-            showResult(resultBox, 'Invalid URL format', 'error');
-            return;
-        }
-
-        // Show loading state
-        scanButton.disabled = true;
-        scanButton.querySelector('.btn-text').style.display = 'none';
-        scanButton.querySelector('.btn-loading').style.display = 'inline';
-        resultBox.style.display = 'none';
-
-        // Get auth token and perform scan
-        chrome.storage.local.get(['authToken'], function(result) {
-            const token = result.authToken || '';
-
-            fetch(`${currentApiUrl}/api/v1/analyze`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ url: url, force_scan: true })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                displayScanResult(resultBox, data);
-            })
-            .catch(error => {
-                console.error('Scan error:', error);
-                showResult(resultBox, `Scan failed: ${error.message}`, 'error');
-            })
-            .finally(() => {
-                scanButton.disabled = false;
-                scanButton.querySelector('.btn-text').style.display = 'inline';
-                scanButton.querySelector('.btn-loading').style.display = 'none';
-            });
-        });
-    }
-
-    /**
-     * Display scan result
-     */
-    function displayScanResult(element, result) {
-        const classification = result.classification || 'unknown';
-        const confidence = Math.round((result.confidence || 0) * 100);
-        const riskScore = result.risk_score || 0;
-
-        let className = 'result-' + classification;
-        let title = classification.replace(/_/g, ' ').toUpperCase();
-        let icon = '⚠️';
-
-        if (classification === 'legitimate') {
-            icon = '✓';
-        } else if (classification === 'phishing' || classification === 'phishing_kit') {
-            icon = '🚨';
-        } else if (classification === 'ai_generated_phishing') {
-            icon = '🤖';
-        }
-
-        element.innerHTML = `
-            <div class="result-header ${className}">
-                <span class="result-icon">${icon}</span>
-                <span class="result-title">${title}</span>
-            </div>
-            <div class="result-details">
-                <div class="result-metric">
-                    <span class="metric-label">Confidence:</span>
-                    <span class="metric-value">${confidence}%</span>
+function loadStatistics() {
+    chrome.runtime.sendMessage({action: 'getStats'}, function(response) {
+        if (response) {
+            const statsDiv = document.getElementById('statsSection') || createStatsSection();
+            statsDiv.innerHTML = `
+                <div style="margin-top: 15px; padding: 10px; background: #f9fafb; border-radius: 6px;">
+                    <h4 style="margin: 0 0 8px 0; color: #374151;">Statistics</h4>
+                    <p style="margin: 4px 0; font-size: 13px;">Total Threats Detected: <strong>${response.totalThreats}</strong></p>
+                    <p style="margin: 4px 0; font-size: 13px;">Last 24 Hours: <strong>${response.recentThreats}</strong></p>
+                    <p style="margin: 4px 0; font-size: 11px; color: #6b7280;">Mode: Standalone</p>
                 </div>
-                <div class="result-metric">
-                    <span class="metric-label">Risk Score:</span>
-                    <span class="metric-value">${riskScore}/100</span>
-                </div>
-                <div class="result-action">
-                    <strong>Action:</strong> ${result.recommended_action || 'monitor'}
-                </div>
-            </div>
-        `;
+            `;
+        }
+    });
+}
 
-        element.className = 'result-box ' + className;
-        element.style.display = 'block';
-    }
-
-    /**
-     * Show simple result message
-     */
-    function showResult(element, message, type) {
-        element.textContent = message;
-        element.className = 'result-box result-' + type;
-        element.style.display = 'block';
-    }
-
-})();
+function createStatsSection() {
+    const section = document.createElement('div');
+    section.id = 'statsSection';
+    document.querySelector('.container').appendChild(section);
+    return section;
+}

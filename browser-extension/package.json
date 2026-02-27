@@ -1,0 +1,43 @@
+{
+  "name": "phishing-guard",
+  "version": "2.0.0",
+  "description": "AI-powered phishing detection browser extension",
+  "main": "background.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "build:zip": "node scripts/build.js --zip",
+    "build:dist": "node scripts/build.js --dist",
+    "clean": "node scripts/clean.js",
+    "test": "node scripts/test.js",
+    "version": "node scripts/version.js",
+    "release": "node scripts/release.js",
+    "lint": "node scripts/lint.js"
+  },
+  "keywords": [
+    "phishing",
+    "security",
+    "browser-extension",
+    "chrome-extension",
+    "cybersecurity",
+    "url-scanner",
+    "malware-detection"
+  ],
+  "author": "Phishing Guard Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/phishing-detection-project.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/phishing-detection-project/issues"
+  },
+  "homepage": "https://github.com/yourusername/phishing-detection-project#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "dist/",
+    "store-assets/",
+    "docs/"
+  ]
+}

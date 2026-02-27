@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Guard - Extension Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 3px solid #e5e7eb;
+        }
+        
+        h1 {
+            color: #1e3a8a;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            font-size: 1.2em;
+        }
+        
+        .status-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+        
+        .status-box h2 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-top: 10px;
+        }
+        
+        .status-checking {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .legend-item {
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid;
+        }
+        
+        .legend-safe {
+            background: #f0fdf4;
+            border-color: #22c55e;
+        }
+        
+        .legend-suspicious {
+            background: #fff7ed;
+            border-color: #f97316;
+        }
+        
+        .legend-danger {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+        
+        .legend-item h3 {
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .test-section {
+            margin: 40px 0;
+            padding: 30px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .test-section h2 {
+            color: #1f2937;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .link-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            transition: transform 0.2s;
+        }
+        
+        .link-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .link-item a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        
+        .link-item a:hover {
+            text-decoration: underline;
+        }
+        
+        .expected {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        
+        .expected-safe {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .expected-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+        
+        .instructions h3 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px solid #e5e7eb;
+            color: #6b7280;
+        }
+        
+        .check-button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+        
+        .check-button:hover {
+            background: #1d4ed8;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .scanning {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ Phishing Guard</h1>
+            <p class="subtitle">Extension Test & Verification Page</p>
+        </header>
+        
+        <div class="status-box">
+            <h2>Extension Status</h2>
+            <p>This page will help you verify that Phishing Guard is working correctly.</p>
+            <div id="statusIndicator" class="status-indicator status-checking">
+                <span>⏳</span> Checking extension status...
+            </div>
+            <button class="check-button" onclick="checkExtension()">Re-check Extension</button>
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 How to Test</h3>
+            <ol>
+                <li>Install the Phishing Guard extension (see README.md)</li>
+                <li>Refresh this page</li>
+                <li>Wait 2-3 seconds for scanning to complete</li>
+                <li>Look at the links below - they should be color-coded</li>
+                <li>Hover over links to see scan results</li>
+                <li>Click the extension icon to use Quick Scan</li>
+            </ol>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item legend-safe">
+                <h3>🟢 Green Border</h3>
+                <p>Safe/Legitimate</p>
+                <small>This link appears safe to click</small>
+            </div>
+            <div class="legend-item legend-suspicious">
+                <h3>🟠 Orange Border</h3>
+                <p>Suspicious</p>
+                <small>Exercise caution with this link</small>
+            </div>
+            <div class="legend-item legend-danger">
+                <h3>🔴 Red Border</h3>
+                <p>Phishing Detected!</p>
+                <strong>Do not click this link!</strong>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>✅ Safe Links (Should be GREEN)</h2>
+            <div class="link-grid">
+                <div class="link-item">
+                    <a href="https://google.com" target="_blank">https://google.com</a>
+                    <span class="expected expected-safe">Expected: SAFE</span>
+                </div>
+                <div class="link-item">
+                    <a href="https://github.com" target="_blank">https://github.com</a>
+                    <span class="expected expected-safe">Expected: SAFE</span>
+                </div>
+                <div class="link-item">
+                    <a href="https://microsoft.com" target="_blank">https://microsoft.com</a>
+                    <span class="expected expected-safe">Expected: SAFE</span>
+                </div>
+                <div class="link-item">
+                    <a href="https://apple.com" target="_blank">https://apple.com</a>
+                    <span class="expected expected-safe">Expected: SAFE</span>
+                </div>
+                <div class="link-item">
+                    <a href="https://amazon.com" target="_blank">https://amazon.com</a>
+                    <span class="expected expected-safe">Expected: SAFE</span>
+                </div>
+                <div class="link-item">
+                    <a href="https://netflix.com" target="_blank">https://netflix.com</a>
+                    <span class="expected expected-safe">Expected: SAFE</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚠️ Phishing Links (Should be RED)</h2>
+            <p style="color: #dc2626; font-weight: bold; margin-bottom: 15px;">
+                🚫 DO NOT ACTUALLY CLICK THESE LINKS! They are known phishing attempts.
+            </p>
+            <div class="link-grid">
+                <div class="link-item">
+                    <a href="http://paypa1.com" target="_blank">http://paypa1.com</a>
+                    <span class="expected expected-danger">Expected: PHISHING</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://amaz0n-security.com" target="_blank">http://amaz0n-security.com</a>
+                    <span class="expected expected-danger">Expected: PHISHING</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://g00gle-login.com" target="_blank">http://g00gle-login.com</a>
+                    <span class="expected expected-danger">Expected: PHISHING</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://faceb00k-verify.net" target="_blank">http://faceb00k-verify.net</a>
+                    <span class="expected expected-danger">Expected: PHISHING</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://secure-bank-update.tk" target="_blank">http://secure-bank-update.tk</a>
+                    <span class="expected expected-danger">Expected: PHISHING</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://login-paypal-secure.cf" target="_blank">http://login-paypal-secure.cf</a>
+                    <span class="expected expected-danger">Expected: PHISHING</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔍 Suspicious Patterns (May be RED or ORANGE)</h2>
+            <div class="link-grid">
+                <div class="link-item">
+                    <a href="http://192.168.1.1/login" target="_blank">http://192.168.1.1/login</a>
+                    <span class="expected expected-danger">Expected: SUSPICIOUS</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://verify-account-now.xyz" target="_blank">http://verify-account-now.xyz</a>
+                    <span class="expected expected-danger">Expected: SUSPICIOUS</span>
+                </div>
+                <div class="link-item">
+                    <a href="http://suspicious-site.ml/secure" target="_blank">http://suspicious-site.ml/secure</a>
+                    <span class="expected expected-danger">Expected: SUSPICIOUS</span>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p><strong>Phishing Guard v2.0 - Standalone Edition</strong></p>
+            <p>No API required • Works offline • Privacy focused</p>
+            <p style="margin-top: 15px; font-size: 0.9em;">
+                If links are not being highlighted, make sure the extension is installed and enabled.
+            </p>
+        </footer>
+    </div>
+    
+    <script>
+        function checkExtension() {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = 'status-indicator status-checking';
+            indicator.innerHTML = '<span class="scanning">⏳</span> Checking extension status...';
+            
+            // Check if content script is responding
+            setTimeout(() => {
+                // Try to communicate with content script
+                if (typeof chrome !== 'undefined' && chrome.runtime) {
+                    chrome.runtime.sendMessage({action: 'getStats'}, function(response) {
+                        if (chrome.runtime.lastError) {
+                            indicator.className = 'status-indicator status-checking';
+                            indicator.innerHTML = '<span>⚠️</span> Extension not detected. Make sure it\'s installed and refresh the page.';
+                        } else {
+                            indicator.className = 'status-indicator status-active';
+                            indicator.innerHTML = '<span>✅</span> Extension is active and working! Mode: ' + (response?.mode || 'standalone');
+                        }
+                    });
+                } else {
+                    indicator.className = 'status-indicator status-checking';
+                    indicator.innerHTML = '<span>⚠️</span> Chrome extension API not available. Open this page in a browser with the extension installed.';
+                }
+            }, 1000);
+        }
+        
+        // Check on page load
+        window.addEventListener('load', function() {
+            setTimeout(checkExtension, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -27,7 +27,10 @@ from PIL import Image
 from playwright.async_api import async_playwright
 
 # Import security validator for SSRF protection
-from .security_validator import URLSecurityValidator
+try:
+    from .security_validator import URLSecurityValidator, validate_url_for_analysis
+except ImportError:
+    from security_validator import URLSecurityValidator, validate_url_for_analysis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -620,8 +623,7 @@ class WebScraper:
             page.on("response", capture_response)
 
             # Validate URL for SSRF protection before navigation
-            security_validator = URLSecurityValidator()
-            is_valid, error_msg = security_validator.validate_url_for_analysis(url)
+            is_valid, error_msg = validate_url_for_analysis(url)
             
             if not is_valid:
                 logger.warning(f"URL blocked by SSRF protection: {error_msg}")

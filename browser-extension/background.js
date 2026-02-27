@@ -1,68 +1,53 @@
 /**
- * Phishing Guard - Background Service Worker
- * Handles API communication, notifications, and state management
+ * Phishing Guard - Background Service Worker (Standalone Mode)
+ * Works without external API - uses JavaScript-based detection
  */
 
-const API_BASE = 'http://localhost:8000';
+// Configuration
+const CONFIG = {
+    useLocalAPI: false,  // Set to true if you want to use local API as well
+    apiBase: 'http://localhost:8000',
+    showNotifications: true
+};
 
 /**
  * Initialize extension on install
  */
 chrome.runtime.onInstalled.addListener(function(details) {
-    console.log('[Phishing Guard] Extension installed');
+    console.log('[Phishing Guard] Extension installed - Standalone Mode');
     
     // Set default settings
     chrome.storage.sync.set({
         enabled: true,
         autoScan: true,
         showNotifications: true,
-        apiUrl: API_BASE
+        mode: 'standalone',  // Indicates standalone operation
+        useLocalAPI: false
     });
     
-    // Authenticate with API
-    authenticateWithAPI();
+    // Show welcome notification
+    showNotification(
+        'Phishing Guard Active',
+        'Extension is running in standalone mode. All links will be scanned automatically.'
+    );
 });
-
-/**
- * Authenticate with the API and store token
- */
-async function authenticateWithAPI() {
-    try {
-        const response = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                username: 'browser-extension',
-                password: 'extension-token-' + chrome.runtime.id
-            })
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            chrome.storage.local.set({authToken: data.access_token});
-            console.log('[Phishing Guard] Authenticated with API');
-        } else {
-            console.error('[Phishing Guard] Authentication failed:', response.status);
-        }
-    } catch (error) {
-        console.error('[Phishing Guard] Auth error:', error);
-    }
-}
 
 /**
  * Listen for tab updates to scan new pages
  */
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
-        // Wait a moment for page to fully load
+        // Wait for page to load, then trigger scan
         setTimeout(() => {
             chrome.tabs.sendMessage(tabId, {action: 'scanPage'}, function(response) {
                 if (chrome.runtime.lastError) {
-                    // Content script not loaded yet, that's ok
-                    console.log('[Phishing Guard] Content script not ready');
+                    // Content script might not be injected yet
+                    console.log('[Phishing Guard] Content script not ready on', tab.url);
+                } else {
+                    console.log('[Phishing Guard] Scanned page:', tab.url, response);
                 }
             });
-        }, 1000);
+        }, 1500);
     }
 });
 
@@ -70,67 +55,72 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
  * Handle messages from content scripts and popup
  */
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    switch(request.action) {
-        case 'quickScan':
-            // Quick scan from popup
-            quickScanURL(request.url).then(sendResponse);
-            return true; // Async response
-            
-        case 'getStats':
-            // Get scanning statistics
-            getScanStats().then(sendResponse);
-            return true;
-            
-        case 'checkHealth':
-            // Check API health
-            checkAPIHealth().then(sendResponse);
-            return true;
-            
-        case 'openSettings':
-            chrome.runtime.openOptionsPage();
-            break;
+    if (request.action === 'threatDetected') {
+        // Handle high-risk threat detection
+        console.log('[Phishing Guard] High-risk threat detected:', request.url);
+        
+        if (CONFIG.showNotifications) {
+            showNotification(
+                '🚨 Phishing Threat Detected!',
+                `Risk Score: ${request.risk}% - ${request.url}`,
+                'high'
+            );
+        }
+        
+        // Store threat for statistics
+        storeThreat(request.url, request.risk);
+        
+        sendResponse({status: 'notified'});
+        
+    } else if (request.action === 'getStats') {
+        // Return scanning statistics
+        getStatistics().then(stats => {
+            sendResponse(stats);
+        });
+        return true; // Async response
+        
+    } else if (request.action === 'clearStats') {
+        chrome.storage.local.remove(['threats', 'scanCount']);
+        sendResponse({status: 'cleared'});
     }
+    
+    return true;
 });
 
 /**
- * Quick scan a URL and return result
+ * Show browser notification
  */
-async function quickScanURL(url) {
-    try {
-        const token = await getAuthToken();
-        
-        const response = await fetch(`${API_BASE}/api/v1/analyze`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({url: url, force_scan: false})
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
-        return await response.json();
-        
-    } catch (error) {
-        console.error('[Phishing Guard] Quick scan error:', error);
-        return {
-            error: error.message,
-            classification: 'error',
-            url: url
-        };
-    }
+function showNotification(title, message, priority = 'normal') {
+    chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'images/icon128.png',
+        title: title,
+        message: message,
+        priority: priority === 'high' ? 2 : 1,
+        requireInteraction: priority === 'high'
+    });
 }
 
 /**
- * Get authentication token from storage
+ * Store detected threat for statistics
  */
-async function getAuthToken() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['authToken'], function(result) {
-            resolve(result.authToken || '');
+function storeThreat(url, risk) {
+    chrome.storage.local.get(['threats', 'scanCount'], function(result) {
+        const threats = result.threats || [];
+        threats.push({
+            url: url,
+            risk: risk,
+            timestamp: Date.now()
+        });
+        
+        // Keep only last 100 threats
+        if (threats.length > 100) {
+            threats.shift();
+        }
+        
+        chrome.storage.local.set({
+            threats: threats,
+            scanCount: (result.scanCount || 0) + 1
         });
     });
 }
@@ -138,48 +128,30 @@ async function getAuthToken() {
 /**
  * Get scanning statistics
  */
-async function getScanStats() {
-    // This would ideally track from storage
-    return {
-        totalScanned: 0,
-        threatsBlocked: 0,
-        lastScan: null
-    };
-}
-
-/**
- * Check API health
- */
-async function checkAPIHealth() {
-    try {
-        const response = await fetch(`${API_BASE}/health`, {
-            method: 'GET'
+async function getStatistics() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['threats', 'scanCount'], function(result) {
+            const threats = result.threats || [];
+            const now = Date.now();
+            const dayAgo = now - (24 * 60 * 60 * 1000);
+            
+            resolve({
+                totalThreats: threats.length,
+                recentThreats: threats.filter(t => t.timestamp > dayAgo).length,
+                totalScans: result.scanCount || 0,
+                mode: 'standalone',
+                lastThreat: threats.length > 0 ? threats[threats.length - 1] : null
+            });
         });
-        
-        if (response.ok) {
-            const data = await response.json();
-            return {
-                online: true,
-                status: data.status,
-                version: data.version
-            };
-        } else {
-            return {
-                online: false,
-                error: `HTTP ${response.status}`
-            };
-        }
-    } catch (error) {
-        return {
-            online: false,
-            error: error.message
-        };
-    }
+    });
 }
 
 /**
- * Periodic health check
+ * Handle extension icon click
  */
-setInterval(checkAPIHealth, 30000); // Check every 30 seconds
+chrome.action.onClicked.addListener(function(tab) {
+    // Open popup is handled automatically by manifest
+    console.log('[Phishing Guard] Extension icon clicked');
+});
 
-console.log('[Phishing Guard] Background service worker loaded');
+console.log('[Phishing Guard] Background service worker loaded - Standalone Mode');

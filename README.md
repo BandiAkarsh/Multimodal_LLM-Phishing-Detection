@@ -156,13 +156,92 @@ sudo journalctl -u phishing-guard -f
 | **Best For** | IEEE demo, API integration | Family protection, always-on |
 
 ### 6. Browser Extension
+
+**🌟 Chrome Web Store Ready!**
+
+The browser extension is now fully packaged and ready for the Chrome Web Store:
+
+#### Option A: Chrome Web Store (One-Click Install)
+**[➡️ Click here to install from Chrome Web Store](https://chrome.google.com/webstore/detail/YOUR_EXTENSION_ID)**
+*(Replace with your actual extension ID once published)*
+
+#### Option B: Manual Installation (Developer Mode)
 ```bash
-# Chrome/Brave:
-1. Open chrome://extensions
-2. Enable "Developer mode"
-3. Click "Load unpacked"
-4. Select browser-extension/ folder
+cd browser-extension
+
+# Build the distribution package
+npm run build:dist
+
+# Or use bash script
+chmod +x scripts/build.sh
+./scripts/build.sh --dist
+
+# Then load in Chrome:
+# 1. Open chrome://extensions/
+# 2. Enable "Developer mode"
+# 3. Click "Load unpacked"
+# 4. Select the dist/ folder
 ```
+
+#### Browser Extension Features
+- ✅ **Standalone Mode** - Works without any backend server
+- ✅ **Real-time Protection** - Automatic link scanning and highlighting
+- ✅ **100% Privacy** - No data leaves your device
+- ✅ **Visual Indicators** - Color-coded links (Green/Yellow/Red)
+- ✅ **Quick Scan** - Manual URL checking via popup
+- ✅ **Chrome Web Store Ready** - Professional packaging included
+
+#### Extension Structure
+```
+browser-extension/
+├── manifest.json              # Extension config (v3)
+├── background.js              # Service worker
+├── content.js                 # Page scanner
+├── popup.html/js/css          # Extension UI
+├── scripts/                   # Build scripts
+│   ├── build.js              # Node.js build
+│   ├── build.sh              # Bash build
+│   ├── version.js            # Version management
+│   └── release.js            # GitHub releases
+├── store-assets/              # Chrome Web Store assets
+│   ├── screenshots/           # Store screenshots
+│   └── promotional/           # Promo images
+├── PRIVACY_POLICY.md          # Required for Web Store
+├── STORE_LISTING.md           # Store description
+├── INSTALL.md                 # Installation guide
+├── CHANGELOG.md               # Version history
+└── package.json               # NPM config
+```
+
+#### Build Commands
+```bash
+cd browser-extension
+
+# Build for distribution
+npm run build
+
+# Create ZIP for Chrome Web Store
+npm run build:dist
+
+# Run tests
+npm test
+
+# Bump version
+npm run version -- patch
+
+# Create GitHub release
+npm run release
+```
+
+#### Publishing to Chrome Web Store
+1. Build: `npm run build:dist`
+2. Go to [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole/)
+3. Click "New Item"
+4. Upload `dist/phishing-guard-v2.0.0.zip`
+5. Fill details using [STORE_LISTING.md](browser-extension/STORE_LISTING.md)
+6. Submit for review
+
+See [browser-extension/INSTALL.md](browser-extension/INSTALL.md) for detailed installation instructions.
 
 ### 7. MLflow Model Management
 ```bash

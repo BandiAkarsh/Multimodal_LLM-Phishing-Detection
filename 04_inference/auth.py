@@ -90,9 +90,88 @@ class AuthManager:
     - API keys (for programmatic access)
     """
 
+    # Default users (in production, use database)
+    # Format: username: bcrypt_hash
+    DEFAULT_USERS = {
+        # Default admin user - password: admin123 (CHANGE IN PRODUCTION!)
+        "admin": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.VTtYA.qGZvKG6G"
+    }
+
     def __init__(self):
         self.jwt_secret = _get_jwt_secret()
         self.api_keys = self._load_api_keys()
+        self._load_users()
+
+    def _load_users(self):
+        """Load users from environment or file."""
+        import bcrypt
+        
+        # Check for users file
+        users_file = os.path.expanduser("~/.phishing_guard/users.json")
+        if os.path.exists(users_file):
+            try:
+                with open(users_file, 'r') as f:
+                    import json
+                    users_data = json.load(f)
+                    self.users = users_data
+            except Exception:
+                self.users = self.DEFAULT_USERS.copy()
+        else:
+            self.users = self.DEFAULT_USERS.copy()
+    
+    def verify_credentials(self, username: str, password: str) -> bool:
+        """
+        Verify username and password.
+        
+        Args:
+            username: User identifier
+            password: Plain text password
+            
+        Returns:
+            bool: True if valid credentials
+        """
+        import bcrypt
+        
+        if username not in self.users:
+            return False
+        
+        stored_hash = self.users[username]
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
+        except Exception:
+            return False
+    
+    def add_user(self, username: str, password: str) -> bool:
+        """
+        Add a new user with hashed password.
+        
+        Args:
+            username: User identifier
+            password: Plain text password
+            
+        Returns:
+            bool: True if user added successfully
+        """
+        import bcrypt
+        import json
+        
+        if username in self.users:
+            return False
+        
+        # Hash password
+        salt = bcrypt.gensalt(rounds=12)
+        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+        
+        self.users[username] = hashed.decode('utf-8')
+        
+        # Save to file
+        users_file = os.path.expanduser("~/.phishing_guard/users.json")
+        os.makedirs(os.path.dirname(users_file), exist_ok=True)
+        with open(users_file, 'w') as f:
+            json.dump(self.users, f, indent=2)
+        os.chmod(users_file, 0o600)
+        
+        return True
 
     def _load_api_keys(self) -> Dict[str, Dict]:
         """Load valid API keys from storage."""

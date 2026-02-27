@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Phishing Guard",
+  "name": "Phishing Guard - Real-Time Phishing Protection",
   "version": "2.0.0",
-  "description": "AI-powered phishing detection for your browser. Protects against malicious links in real-time.",
+  "description": "AI-powered phishing detection that protects you from malicious links in real-time. Works offline with 100% privacy.",
+  "author": "Phishing Guard Team",
+  "homepage_url": "https://github.com/yourusername/phishing-detection-project",
   "permissions": [
     "activeTab",
     "storage",
