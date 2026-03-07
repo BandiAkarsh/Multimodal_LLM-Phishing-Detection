@@ -497,13 +497,24 @@ ENABLE_HTTPS = os.getenv("ENABLE_HTTPS", "false").lower() == "true"
 
 
 def generate_self_signed_cert():
-    """Generate self-signed SSL certificates for HTTPS."""
+    """Generate self-signed SSL certificates for HTTPS (DEVELOPMENT ONLY)."""
     import datetime
 
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import NameOID
+
+    env = os.getenv("ENV", "production").lower()
+    if env == "production":
+        raise RuntimeError(
+            "Auto-generation of self-signed certificates is not allowed in production. "
+            "Provide your own SSL_CERT_PATH and SSL_KEY_PATH with valid certificates."
+        )
+
+    print("⚠️  WARNING: Generating self-signed certificate for DEVELOPMENT ONLY.")
+    print("   These certificates are NOT trusted by browsers and should NEVER be used in production.")
+    print("   For production, obtain certificates from a trusted CA like Let's Encrypt.")
 
     # Create certificates directory
     cert_dir = Path(SSL_CERT_PATH).parent
@@ -551,8 +562,9 @@ def generate_self_signed_cert():
     with open(SSL_CERT_PATH, "wb") as f:
         f.write(cert.public_bytes(serialization.Encoding.PEM))
 
-    # Write private key
-    with open(SSL_KEY_PATH, "wb") as f:
+    # Write private key (unencrypted for convenience, but restrict permissions)
+    key_path = Path(SSL_KEY_PATH)
+    with open(key_path, "wb") as f:
         f.write(
             private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -560,10 +572,12 @@ def generate_self_signed_cert():
                 encryption_algorithm=serialization.NoEncryption(),
             )
         )
+    # Restrict key file permissions to owner read/write only
+    key_path.chmod(0o600)
 
-    print(f"Generated self-signed certificates:")
+    print(f"Generated self-signed certificates ( DEVELOPMENT ONLY! ):")
     print(f"  Certificate: {SSL_CERT_PATH}")
-    print(f"  Private Key: {SSL_KEY_PATH}")
+    print(f"  Private Key: {SSL_KEY_PATH} (permissions: 600)")
 
 
 if __name__ == "__main__":
@@ -572,15 +586,27 @@ if __name__ == "__main__":
 
     port = int(os.getenv("PORT", "8000"))
     host = os.getenv("HOST", "0.0.0.0")
+    env = os.getenv("ENV", "production").lower()
 
     if ENABLE_HTTPS:
-        # Generate certificates if they don't exist
-        if not Path(SSL_CERT_PATH).exists() or not Path(SSL_KEY_PATH).exists():
-            print("Generating self-signed SSL certificates...")
-            generate_self_signed_cert()
+        # Check if certificates exist
+        cert_path = Path(SSL_CERT_PATH)
+        key_path = Path(SSL_KEY_PATH)
+
+        if not cert_path.exists() or not key_path.exists():
+            if env == "production":
+                raise RuntimeError(
+                    f"HTTPS enabled but certificates not found at {SSL_CERT_PATH} and {SSL_KEY_PATH}. "
+                    "In production, you must provide valid SSL certificates. "
+                    "For Let's Encrypt, use certbot or your cloud provider's certificate manager."
+                )
+            else:
+                # Development: auto-generate self-signed certs with warning
+                print("Generating self-signed SSL certificates for development...")
+                generate_self_signed_cert()
 
         print(f"Starting HTTPS server on https://{host}:{port}")
-        print(f"Note: You'll need to accept the self-signed certificate in your browser")
+        print(f"Note: If using self-signed certificates, you'll need to accept the browser warning.")
 
         uvicorn.run(
             "api:app",

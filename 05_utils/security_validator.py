@@ -14,8 +14,32 @@ Version: 2.0.0
 
 import ipaddress
 import re
+from functools import lru_cache
 from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse, urlunparse
+
+
+@lru_cache(maxsize=1024)
+def _resolve_hostname_cached(hostname: str) -> Optional[str]:
+    """
+    Resolve hostname to IP address with caching.
+
+    Uses a 1024-entry LRU cache to avoid repeated DNS lookups.
+    Timeout of 5 seconds prevents slow DNS attacks.
+
+    Args:
+        hostname: Hostname to resolve
+
+    Returns:
+        str: IP address string if resolution succeeds
+        None: If resolution fails
+    """
+    try:
+        import socket
+        socket.setdefaulttimeout(5)
+        return socket.gethostbyname(hostname)
+    except Exception:
+        return None
 
 
 class URLSecurityValidator:
@@ -246,26 +270,18 @@ class URLSecurityValidator:
             # Not an IP, try DNS resolution
             pass
 
-        # Try to resolve hostname (blocking I/O - consider async for production)
-        try:
-            import socket
-
-            # Use timeout to prevent slow DNS attacks
-            socket.setdefaulttimeout(5)
-            ip_str = socket.gethostbyname(hostname)
+        # Try to resolve hostname using cached resolver (performance + DoS protection)
+        ip_str = _resolve_hostname_cached(hostname)
+        if ip_str:
             ip = ipaddress.ip_address(ip_str)
 
             for network in self.BLOCKED_IP_NETWORKS:
                 if ip in network:
                     return True
-        except (socket.gaierror, socket.timeout, OSError):
+        else:
             # DNS resolution failed - reject unknown hosts for safety
             self.validation_errors.append(f"DNS resolution failed for {hostname}")
             return True  # Fail closed - treat as potentially dangerous
-        except Exception as e:
-            # Unexpected error - log and fail closed
-            self.validation_errors.append(f"DNS resolution error: {e}")
-            return True  # Fail closed
 
         return False
 

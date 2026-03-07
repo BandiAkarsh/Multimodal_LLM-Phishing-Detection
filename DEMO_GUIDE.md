@@ -287,6 +287,137 @@ $ python demo.py --features https://example.com
 ```
 Extracts and displays all URL features.
 
+## 📋 New: Proof-of-Working for Viva/Stakeholders
+
+For final year project presentations, we provide **two new demo programs** that are ideal for live demonstrations:
+
+### 1. `proof_of_working.py` - Interactive Proof
+
+**Best for:** Viva voce, stakeholder demonstrations, real-time testing
+
+**What it does:**
+- Takes **any URL** as user input (no pre-defined examples)
+- Shows **step-by-step** the detection mechanism
+- Explains each stage: validation, feature extraction, ML classification, scraping, etc.
+- Displays detailed intermediate results
+- Perfect for demonstrating **how the system works** under the hood
+
+**Usage:**
+```bash
+# Set JWT secret first (only needed once per session)
+export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+# Run proof-of-working
+python proof_of_working.py
+```
+
+**What reviewers will see:**
+```
+════════════════════════════════════════════════════════════════════════════════
+  ANALYZING: https://evil-phishing-site.com
+════════════════════════════════════════════════════════════════════════════════
+
+[STEP 1] URL VALIDATION & SECURITY CHECKS
+  → URL parsed and validated
+  → Scheme allowed: https
+  ✓ URL passed security validation
+
+[STEP 2] FEATURE EXTRACTION (93 features)
+  → Extracted 93 features
+  Top 5 Features:
+    1. url_length: 87
+    2. num_digits: 24
+    3. has_ip_address: 1
+    4. suspicious_tld: 1
+    5. punycode_count: 0
+
+[STEP 3] TYPOSQUATTING DETECTION
+  ⚠ Brand impersonation detected!
+    Brand: paypal
+    Similarity: 91.3%
+    Distance: 1
+
+[STEP 4] MACHINE LEARNING CLASSIFICATION
+  ✓ ML Prediction: PHISHING (confidence: 98.5%)
+
+[STEP 5] WEB CONTENT SCRAPING (Online)
+  ✓ Scraping completed
+    Title: "Secure Login - PayPal"
+    Forms found: 2
+    Suspicious forms: 2
+    External domains: 3
+
+[STEP 6] FINAL ORCHESTRATION & VERDICT
+
+  FINAL VERDICT:
+    ███ Classification: PHISHING
+    ███ Confidence: ▓▓▓▓▓▓▓▓▓ 98.5%
+    ███ Risk Score: [████████░░] 85.2%
+    ███ Action: BLOCK
+
+  EXPLANATION:
+    Domain contains brand impersonation (paypal → paypa1). Website hosts a login 
+    form that posts to an external domain. Toolkit signature Gophish detected in HTML.
+
+════════════════════════════════════════════════════════════════════════════════
+  ANALYSIS COMPLETE - Time: 2.34s
+════════════════════════════════════════════════════════════════════════════════
+```
+
+### 2. `final_demo.py` - Presentation Mode
+
+**Best for:** Prepared presentations with polished output
+
+**Features:**
+- Similar step-by-step output to `proof_of_working.py`
+- Enhanced visual formatting with colors and boxes
+- Automatic analysis summary at the end
+- Clean, professional look for presentations
+
+**Usage:**
+```bash
+python final_demo.py
+```
+
+**Difference from proof_of_working:**
+- `proof_of_working.py`: Most detailed, shows raw technical steps
+- `final_demo.py`: Polished, presentation-ready with cleaner layout
+
+### Demo Comparison Table
+
+| Feature | demo.py | proof_of_working.py | final_demo.py |
+|---------|---------|---------------------|---------------|
+| User input (any URL) | Limited | ✅ Full interaction | ✅ Full interaction |
+| Step-by-step explanation | Basic | ✅ Detailed technical | ✅ Polished |
+| Best for | Quick tests | Viva/technical deep-dive | Stakeholder presentations |
+| Shows intermediate steps | Some | ✅ All | ✅ All |
+
+## Tips for Your Viva/Stakeholder Demo
+
+1. **Preparation:**
+   ```bash
+   export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+   # Test with 3-4 URLs: google.com (safe), paypa1.com (typosquat), suspicious.xyz (phishing)
+   ```
+
+2. **Suggested Flow:**
+   - Start with a **safe URL** (google.com) to show legitimate analysis
+   - Then try a **typosquatting site** (paypa1.com) to show impersonation detection
+   - Finally try a **suspicious URL** with external forms to show scraping
+   - Conclude with summary statistics
+
+3. **Key Talking Points:**
+   - "The system extracts **93 features** from every URL" (show step 2)
+   - "Typosquatting detection uses Levenshtein distance and brand database"
+   - "Content scraping verifies if the site actually looks like phishing" (explain content override)
+   - "We have 4 categories: Legitimate, Phishing, AI-Generated, Phishing Kit"
+
+4. **Questions to Anticipate:**
+   - "What happens offline?" → Explain offline mode (no scraping, reduced categories)
+   - "How accurate is the ML model?" → 99.8% F1 score on PhishTank
+   - "Can it detect new phishing sites?" → Yes, via feature-based ML, not just signatures
+   - "Is it production-ready?" → Yes, security hardened with JWT, rate limiting, SSRF protection
+
 ## License
 
 This demonstration interface is part of the Phishing Detection System project.

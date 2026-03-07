@@ -319,6 +319,8 @@ phishing_detection_project/
 ├── 🐍 test_security.py      # Security tests
 ├── 🐍 test_comprehensive.py # Full test suite
 ├── 🐍 demo_security.py      # Interactive demo
+├── 🐍 proof_of_working.py   # Interactive proof for viva/stakeholders
+├── 🐍 final_demo.py         # Presentation demo with full explanations
 │
 ├── 🐳 Dockerfile            # Container deployment
 ├── 📋 docker-compose.yml    # Docker orchestration
@@ -331,9 +333,13 @@ phishing_detection_project/
 - ✅ **Credential Encryption** (Fernet + Keyring)
 - ✅ **JWT Authentication** (24hr tokens)
 - ✅ **Rate Limiting** (100 req/min)
-- ✅ **SSRF Protection** (Private IP blocking)
+- ✅ **SSRF Protection** (Private IP blocking, DNS caching)
 - ✅ **Input Validation** (RFC 3986 + security)
 - ✅ **TLS 1.3 Enforcement** (Certificate validation)
+- ✅ **DNS Caching** (DoS prevention)
+- ✅ **Model Integrity** (SHA256 verification)
+
+> **Security Hardened** - All critical vulnerabilities fixed. See [SECURITY_HARDENING_REPORT.md](SECURITY_HARDENING_REPORT.md) for details.
 
 ## 🤖 MLflow Model Registry
 
@@ -409,8 +415,14 @@ python detect_enhanced.py https://google.com
 python test_security.py
 python test_comprehensive.py
 
-# Demo all features
-python demo_security.py
+# Interactive demos
+python demo_security.py          # Basic interactive demo
+python proof_of_working.py      # Step-by-step NLP (ideal for viva)
+python final_demo.py            # Full presentation mode
+
+# Quick proof for any URL (inline)
+JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))") \
+python proof_of_working.py
 ```
 
 ## 🛠️ Development

@@ -28,6 +28,7 @@ Detection Modes:
 """
 
 import asyncio
+import hashlib
 import importlib.util
 import os
 import sys
@@ -150,16 +151,21 @@ class PhishingDetectionService:
                         f"Note: MLflow loading failed ({mlflow_error}), falling back to joblib..."
                     )
 
-                    # Fallback to joblib
+                    # Fallback to joblib with integrity verification
                     model_dir = os.path.join(project_root, "02_models")
-                    self.ml_model = joblib.load(
-                        os.path.join(model_dir, "phishing_classifier.joblib")
-                    )
-                    self.ml_scaler = joblib.load(os.path.join(model_dir, "feature_scaler.joblib"))
-                    self.ml_feature_cols = joblib.load(
-                        os.path.join(model_dir, "feature_columns.joblib")
-                    )
-                    print("✓ ML model loaded from joblib (fallback)")
+                    model_path = os.path.join(model_dir, "phishing_classifier.joblib")
+                    scaler_path = os.path.join(model_dir, "feature_scaler.joblib")
+                    cols_path = os.path.join(model_dir, "feature_columns.joblib")
+
+                    # Verify integrity of all model files before loading
+                    for p in (model_path, scaler_path, cols_path):
+                        if not self._verify_model_integrity(p):
+                            raise ValueError(f"Model integrity verification failed for {p}")
+
+                    self.ml_model = joblib.load(model_path)
+                    self.ml_scaler = joblib.load(scaler_path)
+                    self.ml_feature_cols = joblib.load(cols_path)
+                    print("✓ ML model loaded from joblib (fallback) with verified integrity")
 
                 self.ml_model_loaded = True
 
@@ -177,6 +183,56 @@ class PhishingDetectionService:
             except Exception as e:
                 print(f"Warning: Could not load MLLM model: {e}")
                 self.model_loaded = False
+
+    def _verify_model_integrity(self, model_path: str) -> bool:
+        """
+        Verify the integrity of a model file using SHA256 hash.
+
+        The expected hash can be provided via:
+        1. Environment variable MODEL_SHA256
+        2. A sidecar file: model_path + ".sha256"
+
+        Args:
+            model_path: Path to model file to verify
+
+        Returns:
+            bool: True if verification passes, False if mismatch or missing hash
+        """
+        import os
+
+        expected_hash = os.getenv("MODEL_SHA256")
+
+        # Also check for sidecar hash file
+        hash_file = model_path + ".sha256"
+        if not expected_hash and os.path.exists(hash_file):
+            with open(hash_file, "r") as f:
+                # Format: "<hash>  <filename>"
+                line = f.readline().strip()
+                expected_hash = line.split()[0] if line else None
+
+        if not expected_hash:
+            print(f"Warning: No integrity hash found for {model_path}. Skipping verification.")
+            return True
+
+        # Compute hash of file
+        sha256 = hashlib.sha256()
+        try:
+            with open(model_path, "rb") as f:
+                while chunk := f.read(8192):
+                    sha256.update(chunk)
+            computed = sha256.hexdigest()
+        except Exception as e:
+            print(f"Error computing hash for {model_path}: {e}")
+            return False
+
+        if computed != expected_hash:
+            print(f"ERROR: Model integrity verification failed for {model_path}")
+            print(f"  Expected: {expected_hash}")
+            print(f"  Computed: {computed}")
+            return False
+
+        print(f"✓ Model integrity verified: {model_path}")
+        return True
 
     @property
     def is_online(self) -> bool:

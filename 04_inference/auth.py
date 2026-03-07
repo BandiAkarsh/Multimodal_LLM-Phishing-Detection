@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import jwt
+from jwt import PyJWTError  # Import the correct base exception
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
@@ -39,17 +40,25 @@ def get_jwt_secret() -> str:
         str: JWT secret for token signing
     """
     secret = os.getenv("JWT_SECRET")
+    env = os.getenv("ENV", "production").lower()
+    
     if not secret:
-        # Development fallback - generate and warn
-        import warnings
+        if env == "production":
+            raise ValueError(
+                "JWT_SECRET environment variable is REQUIRED in production. "
+                'Generate a secure secret with: python -c "import secrets; print(secrets.token_hex(32))"'
+            )
+        else:
+            # Development fallback - generate and warn
+            import warnings
 
-        warnings.warn(
-            "JWT_SECRET environment variable not set. Generating temporary secret. "
-            "All tokens will be invalidated on restart. "
-            'Generate a secure secret with: python -c "import secrets; print(secrets.token_hex(32))"',
-            RuntimeWarning,
-        )
-        return secrets.token_hex(32)
+            warnings.warn(
+                "JWT_SECRET environment variable not set. Generating temporary secret. "
+                "All tokens will be invalidated on restart. "
+                'Set JWT_SECRET for consistent sessions: python -c "import secrets; print(secrets.token_hex(32))"',
+                RuntimeWarning,
+            )
+            return secrets.token_hex(32)
 
     if len(secret) < 32:
         import warnings
@@ -90,13 +99,6 @@ class AuthManager:
     - API keys (for programmatic access)
     """
 
-    # Default users (in production, use database)
-    # Format: username: bcrypt_hash
-    DEFAULT_USERS = {
-        # Default admin user - password: admin123 (CHANGE IN PRODUCTION!)
-        "admin": "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.VTtYA.qGZvKG6G"
-    }
-
     def __init__(self):
         self.jwt_secret = _get_jwt_secret()
         self.api_keys = self._load_api_keys()
@@ -104,20 +106,32 @@ class AuthManager:
 
     def _load_users(self):
         """Load users from environment or file."""
-        import bcrypt
+        import json
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Start with empty users dict
+        self.users = {}
         
         # Check for users file
         users_file = os.path.expanduser("~/.phishing_guard/users.json")
         if os.path.exists(users_file):
             try:
                 with open(users_file, 'r') as f:
-                    import json
                     users_data = json.load(f)
                     self.users = users_data
-            except Exception:
-                self.users = self.DEFAULT_USERS.copy()
+                    logger.info(f"Loaded {len(self.users)} users from {users_file}")
+            except Exception as e:
+                logger.error(f"Failed to load users from {users_file}: {e}")
+                # Start fresh if file is corrupted
+                self.users = {}
         else:
-            self.users = self.DEFAULT_USERS.copy()
+            logger.warning(f"No users file found at {users_file}. Create users with add_user().")
+            # In development, check if we should create a default user
+            env = os.getenv("ENV", "production")
+            if env == "development":
+                logger.info("Development mode: No default users created for security.")
     
     def verify_credentials(self, username: str, password: str) -> bool:
         """
@@ -246,7 +260,7 @@ class AuthManager:
                 detail="Token has expired",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        except jwt.JWTError:
+        except PyJWTError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
@@ -451,7 +465,8 @@ class RateLimiter:
         redis_key = f"ratelimit:{key}"
 
         # Use Redis pipeline for atomic operations
-        pipe = self.redis_client.pipeline()
+        # assert self.redis_client is not None (set in __init__ when redis is available)
+        pipe = self.redis_client.pipeline()  # type: ignore[union-attr]
 
         # Remove old entries outside the window
         pipe.zremrangebyscore(redis_key, 0, window_start)
