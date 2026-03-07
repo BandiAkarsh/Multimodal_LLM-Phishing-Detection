@@ -29,9 +29,14 @@ Version: 2.0.0
 import os
 import sys
 import time
+import warnings
 from datetime import datetime
+from typing import Any, Dict
 
-# Add project paths
+# Suppress MLflow FutureWarnings for clean demo output
+warnings.filterwarnings("ignore", category=FutureWarning, module="mlflow")
+
+# Dynamic path resolution
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "04_inference"))
