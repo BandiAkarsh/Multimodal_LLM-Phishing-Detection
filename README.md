@@ -8,24 +8,21 @@
 
 **AI-powered phishing detection with 93 ML features, IDN protection, and enterprise security.**
 
-## 📦 Three Separate Projects
+## 📦 Two Separate Projects
 
-This repository contains the **main IEEE project**. Two additional projects have been extracted for different use cases:
+This repository contains the **main IEEE project**. One additional project is available for different use cases:
 
 | Project | Location | Size | Best For |
 |---------|----------|------|----------|
 | **This Project** | `~/phishing_detection_project/` | Full codebase | IEEE submission, research, reference |
 | **Daemon Service** | `~/phishing-guard-daemon/` | 166KB | Family/friends - 24/7 background protection |
-| **Tauri GUI** | `~/phishing-guard-tauri/` | 3.8MB | Desktop app - visual interface, IEEE demo |
 
 **GitHub Repositories:**
 - 🏠 **Main Project**: [github.com/BandiAkarsh/phishing_detection_project](https://github.com/BandiAkarsh/phishing_detection_project)
 - ⚙️ **Daemon**: [github.com/BandiAkarsh/phishing-guard-daemon](https://github.com/BandiAkarsh/phishing-guard-daemon)
-- 🖥️ **Tauri GUI**: [github.com/BandiAkarsh/phishing-guard-tauri](https://github.com/BandiAkarsh/phishing-guard-tauri)
 
 > 💡 **Quick Install**: 
 > - For background protection: `sudo dpkg -i ~/phishing-guard_2.0.0-1_all.deb`
-> - For desktop GUI: `sudo dpkg -i ~/phishing-guard-tauri/releases/Phishing\ Guard_2.0.0_amd64.deb`
 
 ## 🎯 What's New in v2.0
 
@@ -33,10 +30,9 @@ This repository contains the **main IEEE project**. Two additional projects have
 - 🤖 **93 ML Features**: 365% improvement (was 20)
 - 🌐 **IDN Protection**: Unicode homograph attack detection
 - 📊 **4-Category Classification**: Legitimate, Phishing, AI-Generated, Phishing Kit
-- 🖥️ **Desktop App**: Standalone Tauri application (no server needed)
 - 🧪 **MLflow Integration**: Model versioning & experiment tracking
 - 🌐 **Browser Extension**: Real-time link protection
-- 📱 **Multiple Interfaces**: CLI, API, GUI, Extension
+- 📱 **Multiple Interfaces**: CLI, API, Extension
 
 ## 🚀 Quick Start
 
@@ -110,23 +106,9 @@ curl -X POST http://localhost:8000/api/v1/analyze \
 
 **For 24/7 background protection, use the Daemon instead (it has its own lightweight API).**
 
-### 4. Desktop Application (Tauri GUI)
-```bash
-# The Tauri desktop app is now maintained as a separate project
-# See: ~/phishing-guard-tauri/
+### 4. Browser Extension (Standalone)
 
-# Run pre-built binary
-cd ~/phishing-guard-tauri
-./src-tauri/target/release/phishing-guard
-
-# Or install DEB package (3.8MB)
-cd ~/phishing-guard-tauri/releases
-sudo dpkg -i "Phishing Guard_2.0.0_amd64.deb"
-phishing-guard
-
-# Note: This is the full-featured GUI app (3.8MB)
-# For lightweight background service, use the Daemon (see below)
-```
+The browser extension works independently without needing the daemon. See [browser-extension/](browser-extension/) folder.
 
 ### 5. Background Daemon Service (Recommended for 24/7 Protection)
 
@@ -334,7 +316,6 @@ This project uses a **hybrid ensemble approach** combining traditional ML with o
 **Note: This is the main IEEE project. Related projects are in separate GitHub repositories:**
 - **This Project**: [github.com/BandiAkarsh/phishing_detection_project](https://github.com/BandiAkarsh/phishing_detection_project) ⭐ Main IEEE project
 - **Daemon Service**: [github.com/BandiAkarsh/phishing-guard-daemon](https://github.com/BandiAkarsh/phishing-guard-daemon) ⚙️ Lightweight background service
-- **Tauri GUI**: [github.com/BandiAkarsh/phishing-guard-tauri](https://github.com/BandiAkarsh/phishing-guard-tauri) 🖥️ Desktop application
 
 ```
 phishing_detection_project/
@@ -345,13 +326,11 @@ phishing_detection_project/
 ├── 📂 05_utils/             # 93 feature extractors
 ├── 📂 06_notebooks/         # Jupyter notebooks
 ├── 📂 07_configs/           # Configuration files
-├── 📂 08_logs/              # MLflow logs
-├── 📂 09_documentation/     # Architecture docs
-├── 📂 browser-extension/    # Chrome/Firefox extension
-├── 📂 docs/                 # Project reports
-├── 📂 examples/             # Sample files
-├── 📂 gui-tauri/            # Desktop app (REFERENCE COPY)
-│                           # ACTIVE DEV: ~/phishing-guard-tauri/
+├── 📂 08_logs/             # MLflow logs
+├── 📂 09_documentation/    # Architecture docs
+├── 📂 browser-extension/   # Chrome/Firefox extension
+├── 📂 docs/                # Project reports
+├── 📂 examples/            # Sample files
 ├── 📂 scripts/              # Build & utility scripts
 ├── 📂 tests/                # Test data & scripts
 │
@@ -476,11 +455,6 @@ pip install -r requirements.txt
 # Run tests
 pytest tests/
 
-# Build desktop app
-cd gui-tauri
-npm install
-npm run tauri build
-
 # Start MLflow
 mlflow ui --backend-store-uri ./mlruns
 ```
@@ -510,9 +484,6 @@ curl http://localhost:8000/health
 ```bash
 # Daemon Service (for 24/7 background protection)
 git clone https://github.com/BandiAkarsh/phishing-guard-daemon.git
-
-# Tauri GUI Desktop App (for visual interface)
-git clone https://github.com/BandiAkarsh/phishing-guard-tauri.git
 ```
 
 #### Step-by-Step Docker Setup
@@ -632,28 +603,6 @@ docker-compose up -d
 
 ---
 
-### 🖥️ Standalone Desktop App (Tauri GUI)
-
-**Note:** The desktop GUI is maintained in a separate folder (`~/phishing-guard-tauri/`).
-
-```bash
-# Option 1: Run pre-built binary
-cd ~/phishing-guard-tauri
-./src-tauri/target/release/phishing-guard
-
-# Option 2: Install .deb package (3.8MB)
-cd ~/phishing-guard-tauri/releases
-sudo dpkg -i "Phishing Guard_2.0.0_amd64.deb"
-phishing-guard
-
-# Option 3: Build from source
-cd ~/phishing-guard-tauri
-npm install
-npm run tauri build
-```
-
----
-
 ### ⚙️ Background Daemon Service (Recommended for 24/7)
 
 For lightweight, always-on protection (166KB):
@@ -694,7 +643,7 @@ See `~/phishing-guard-daemon/README.md` for full daemon documentation.
 
 - **IEEE Project Guide**: [Add your guide's name]
 - **Institution**: [Add your college/university]
-- **Built with**: Python, FastAPI, Tauri, Rust, React, scikit-learn
+- **Built with**: Python, FastAPI, scikit-learn, Playwright, MLflow
 
 ## 📄 License
 

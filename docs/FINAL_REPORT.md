@@ -130,23 +130,10 @@ All major deliverables finished. Project ready for:
   - Statistics tracking
   - JWT authentication
   - DOM mutation observer
-- Browsers: Chrome, Brave, Edge, Opera
-- Installation: Load unpacked
+  - Browsers: Chrome, Brave, Edge, Opera
+  - Installation: Load unpacked
 
-**2. Tauri Desktop App** ✅ STRUCTURE READY
-- Location: `~/phishing-guard-tauri/` (moved to separate project)
-- Files: 6 files, 603 lines
-- Stack: Rust + React
-- Features:
-  - System tray support
-  - Desktop notifications
-  - API integration
-  - Authentication
-  - Responsive UI
-- Status: Structure complete, needs build
-- **Note:** Requires ~600MB Rust download to compile
-
-**3. Enhanced CLI** ✅ COMPLETE
+**2. Enhanced CLI** ✅ COMPLETE
 - File: `detect_enhanced.py` (311 lines)
 - Features:
   - Color-coded output
@@ -238,15 +225,6 @@ browser-extension/
   ├── styles.css            # Styling
   └── README.md             # Extension docs
 
-gui-tauri/
-  ├── src-tauri/
-  │   ├── Cargo.toml        # Rust config
-  │   ├── tauri.conf.json   # Tauri settings
-  │   └── src/main.rs       # Rust backend
-  ├── package.json          # Node deps
-  ├── src/App.jsx           # React app
-  └── src/components/       # UI components
-
 Root/
   ├── detect_enhanced.py    # Enhanced CLI
   ├── test_security.py      # Security tests
@@ -287,9 +265,8 @@ requirements.txt            # Dependencies
 
 ### User Experience: Professional 💻
 - ✅ Browser extension (real-time protection)
-- ✅ Desktop app structure (Tauri)
 - ✅ Enhanced CLI (colors/progress)
-- ✅ Multiple interfaces (API, GUI, CLI)
+- ✅ Multiple interfaces (API, CLI)
 
 ### Documentation: Comprehensive 📚
 - ✅ 2,500+ lines of documentation
@@ -324,13 +301,6 @@ requirements.txt            # Dependencies
    python 04_inference/api.py
    # Test with curl or browser at http://localhost:8000/docs
    ```
-
-### What Requires Build (High Bandwidth):
-
-1. **Tauri Desktop App:**
-   - Structure ready in `gui-tauri/`
-   - Needs: `cargo build` (downloads ~600MB)
-   - Can be done on high-bandwidth day
 
 ---
 
