@@ -180,14 +180,17 @@ class InteractiveProof:
             self.print_header("STEP 3: TYPOSQUATTING DETECTION")
             from typosquatting_detector import TyposquattingDetector
             detector = TyposquattingDetector()
-            typosquat_result = detector.check(url)
+            typosquat_result = detector.analyze(url)
             
-            if typosquat_result:
+            if typosquat_result.get('is_typosquatting'):
                 self.print_warning(f"Brand impersonation detected!")
-                self.print_substep(f"Brand: {typosquat_result.get('brand', 'Unknown')}")
-                self.print_substep(f"Similarity: {typosquat_result.get('similarity', 0)*100:.1f}%")
-                self.print_substep(f"Distance: {typosquat_result.get('distance', 'N/A')}")
-                self.print_substep(f"Why: {typosquat_result.get('reason', 'N/A')}")
+                self.print_substep(f"Method: {typosquat_result.get('detection_method', 'unknown')}")
+                self.print_substep(f"Brand: {typosquat_result.get('impersonated_brand', 'Unknown')}")
+                self.print_substep(f"Similarity: {typosquat_result.get('similarity_score', 0)*100:.1f}%")
+                self.print_substep(f"Risk increase: {typosquat_result.get('risk_increase', 0)}%")
+                if typosquat_result.get('details'):
+                    for detail in typosquat_result['details'][:3]:  # Show first 3 details
+                        self.print_substep(f"- {detail}")
             else:
                 self.print_success("No typosquatting detected")
             
