@@ -222,31 +222,12 @@ class InteractiveProof:
             time.sleep(0.5)
             
             # STEP 5: Web scraping (if online)
-            scraped_data = None
+            # Note: Scraping is performed as part of the final analysis pipeline.
+            # We'll show the results in the final step.
             if self.is_online:
-                self.print_header("STEP 5: WEB CONTENT SCRAPING")
-                from web_scraper import WebScraper
-                scraper = WebScraper(headless=True)
-                
-                self.print_substep("Fetching webpage content...")
-                try:
-                    scraped_data = scraper.analyze(url)
-                    
-                    self.print_success("Scraping completed")
-                    self.print_substep(f"Title: {scraped_data.get('title', 'N/A')[:50]}...")
-                    self.print_substep(f"Forms found: {scraped_data.get('forms_count', 0)}")
-                    self.print_substep(f"Suspicious forms: {scraped_data.get('suspicious_forms_count', 0)}")
-                    self.print_substep(f"External domains: {scraped_data.get('external_domains_count', 0)}")
-                    
-                    # Toolkit detection
-                    toolkits = scraped_data.get('toolkit_signatures', {})
-                    if toolkits:
-                        self.print_warning(f"Toolkit signatures: {', '.join(toolkits.keys())}")
-                    
-                except Exception as e:
-                    self.print_warning(f"Scraping failed: {e}")
-                    scraped_data = None
-                
+                self.print_header("STEP 5: WEB CONTENT SCRAPING (ONLINE MODE)")
+                self.print_substep("Scraping will be performed during final analysis...")
+                self.print_substep("(Detailed scraping results will appear in final step)")
                 time.sleep(0.5)
             
             # STEP 6: Full analysis orchestration
