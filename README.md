@@ -54,12 +54,24 @@ pip install -r requirements.txt
 # Run all tests
 python test_security.py
 python test_comprehensive.py
+```
 
-# Interactive demo
+### 2. Interactive Demos (For Viva/Demonstration)
+```bash
+# Set JWT secret (required for demo)
+export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+# Step-by-step proof (recommended for viva)
+python proof_of_working.py
+
+# Polished presentation demo
+python final_demo.py
+
+# Original interactive demo
 python demo_security.py
 ```
 
-### 2. CLI Mode (Fastest)
+### 3. CLI Mode (Fastest)
 ```bash
 # Single URL
 python detect_enhanced.py https://example.com
@@ -257,11 +269,41 @@ mlflow ui --backend-store-uri ./mlruns
 
 | Metric | Value |
 |--------|-------|
-| **F1 Score** | 99.8% |
+| **F1 Score** | 99.82% |
+| **Precision** | 99.81% |
+| **Recall** | 99.83% |
 | **Features** | 93 (was 20) |
 | **Classification** | 4 categories |
 | **False Positive** | < 0.5% |
 | **Latency** | < 2 seconds |
+
+## 🤖 ML/DL Algorithms Used
+
+This project uses a **hybrid ensemble approach** combining traditional ML with optional deep learning:
+
+### Primary Classification (Required)
+- **Random Forest Classifier** (200 estimators, max_depth=20)
+  - Base ensemble member for stability
+  - Handles non-linear relationships well
+  - Feature importance extraction
+  
+- **XGBoost Classifier** (50 estimators, max_depth=6)
+  - Gradient boosting for accuracy
+  - Complements Random Forest
+  - Soft voting ensemble
+
+- **Ensemble Method**: Soft Voting (average probability)
+
+### Optional Deep Learning
+- **Qwen2.5-3B-Instruct** (4-bit quantized)
+  - For AI-generated phishing detection
+  - Detects patterns in LLM-generated content
+  - Optional due to size (1.8GB quantized)
+
+### Feature Engineering
+- 93 hand-crafted features across 7 categories
+- StandardScaler normalization
+- SMOTE oversampling for class balance
 
 ## 🏗️ Architecture
 
