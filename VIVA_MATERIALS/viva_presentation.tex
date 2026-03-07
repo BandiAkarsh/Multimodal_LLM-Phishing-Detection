@@ -11,8 +11,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{hyperref}
-\usepackage{tikz}
-\usetikzlibrary{shapes, arrows, positioning}
+% tikz removed to avoid Overleaf compilation issues
 
 % Colors for code listings
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -212,17 +211,18 @@ features = {
 
 \begin{frame}{4-Category Classification}
     \begin{center}
-        \begin{tikzpicture}[scale=0.8]
-            \node[draw, fill=blue!20, rounded corners, minimum width=3cm, minimum height=1cm] (legit) at (0,0) {LEGITIMATE};
-            \node[draw, fill=red!20, rounded corners, below of=legit, node distance=1.5cm] (phish) {PHISHING};
-            \node[draw, fill=orange!20, rounded corners, right of=phish, node distance=3cm] (ai) {AI-GENERATED};
-            \node[draw, fill=purple!20, rounded corners, left of=phish, node distance=3cm] (kit) {PHISHING KIT};
-            
-            \draw[->, thick] (legit) -- (phish) node[midway, right] {Static ML};
-            \draw[->, thick] (phish) -- (ai) node[midway, above] {MLLM check};
-            \draw[->, thick] (phish) -- (kit) node[midway, above] {Toolkit sig};
-        \end{tikzpicture}
+        \begin{tabular}{c@{\hspace{1cm}}c@{\hspace{1cm}}c}
+            \textbf{Static ML} & \textbf{Online Content} & \textbf{Final} \\
+            Random Forest & Scraping + AI & Classification \\
+            \midrule
+            \fbox{\parbox{2cm}{\centering Legitimate}} & & \fbox{\parbox{2cm}{\centering Legitimate}} \\
+            \fbox{\parbox{2cm}{\centering Phishing}} & \fbox{\parbox{2cm}{\centering Toolkit}} & \fbox{\parbox{2cm}{\centering Phishing Kit}} \\
+            & \fbox{\parbox{2cm}{\centering AI-Generated}} & \fbox{\parbox{2cm}{\centering AI-Generated}} \\
+        \end{tabular}
     \end{center}
+    
+    \vspace{5mm}
+    \textbf{Rule}: Content analysis overrides static ML when online
 \end{frame}
 
 \section{Implementation}
