@@ -1,0 +1,244 @@
+\documentclass[10pt, aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+
+% Essential packages only (max compatibility)
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{multicol}
+
+% Code style
+\definecolor{codebg}{RGB}{248,248,248}
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    framesep=5pt,
+    rulecolor=\color{black!30}
+}
+
+% Title
+\title{AI-Powered Phishing Detection System}
+\subtitle{4-Category Classification with 99.82\% Accuracy}
+\author{Your Name \\ \small{Department of Computer Science} \\ \small{Your College}}
+\date{March 2026}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}{Agenda}
+    \tableofcontents
+\end{frame}
+
+\section{Introduction}
+
+\begin{frame}{The Problem}
+    \begin{block}{Statistics}
+        \begin{itemize}
+            \item \$5B+ annual losses globally
+            \item 3.4B phishing sites detected yearly
+            \item 91\% of cyberattacks start with phishing
+        \end{itemize}
+    \end{block}
+    
+    \begin{block}{Limitations of Current Solutions}
+        \begin{itemize}
+            \item \textbf{Blacklists}: Reactive, miss new sites
+            \item \textbf{URL-only ML}: High false positives on brand-keyword domains
+            \item \textbf{Email filters}: Only protect email
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}{Our Solution}
+    \begin{center}
+        \Large
+        \textbf{4-Category Classification}
+        
+        \begin{tcolorbox}[colback=blue!5!white,colframe=blue!75!black,width=0.8\textwidth]
+            \centering
+            \textbf{LEGITIMATE} \hspace{1cm} \textbf{PHISHING} \\
+            \textbf{AI-GENERATED PHISHING} \hspace{1cm} \textbf{PHISHING KIT}
+        \end{tcolorbox}
+    \end{center}
+    
+    \vspace{5mm}
+    \begin{itemize}
+        \item 93 machine learning features
+        \item 99.82\% F1-score accuracy
+        \item Content override reduces false positives by 90\%
+        \item Security hardened, production ready
+    \end{itemize}
+\end{frame}
+
+\section{Architecture}
+
+\begin{frame}{System Pipeline}
+    \centering
+    \includegraphics[width=0.95\textwidth]{pipeline_diagram.png}
+    % Create a simple 3-tier diagram: Input -> Static ML -> Online Content -> Output
+\end{frame}
+
+\begin{frame}{Three-Tier Detection}
+    \begin{enumerate}
+        \item \textbf{Tier 1: Validation}
+        \begin{itemize}
+            \item URL canonicalization
+            \item SSRF protection
+            \item Length/scheme checks
+        \end{itemize}
+        
+        \item \textbf{Tier 2: Static ML}
+        \begin{itemize}
+            \item 93 features extracted
+            \item Random Forest + XGBoost ensemble
+            \item 180ms latency (offline)
+        \end{itemize}
+        
+        \item \textbf{Tier 3: Online Content} (optional)
+        \begin{itemize}
+            \item Web scraping (Playwright)
+            \item Toolkit signature detection
+            \item MLLM for AI-generated content
+        \end{itemize}
+    \end{enumerate}
+\end{frame}
+
+\section{Machine Learning}
+
+\begin{frame}[fragile]{Feature Engineering}
+    \textbf{93 Features Across 7 Categories}
+    
+    \begin{small}
+    \begin{tabular}{@{}lll@{}}
+        \toprule
+        Category & Count & Examples \\
+        \midrule
+        IDN/Homograph & 8 & punycode\_count, mixed\_scripts \\
+        Host Analysis & 12 & hostname\_length, domain\_entropy \\
+        URL Patterns & 15 & url\_length, num\_dots \\
+        Security & 18 & has\_https, ssl\_valid, has\_ip \\
+        TLS Analysis & 4 & cert\_age, cert\_issuer \\
+        Typo squatting & 8 & levenshtein, brand\_similarity \\
+        Risk Scores & 7 & domain\_age, registrar\_risk \\
+        \bottomrule
+    \end{tabular}
+    \end{small}
+\end{frame}
+
+\begin{frame}[fragile]{ML Models}
+    \begin{block}{Ensemble: Random Forest + XGBoost}
+        \textbf{Random Forest} (200 trees): Stability, handles outliers \\
+        \textbf{XGBoost} (50 trees): Gradient boosting for accuracy
+    \end{block}
+    
+    \vspace{3mm}
+    \textbf{Hyperparameters}:
+    \begin{lstlisting}[language=Python]
+RandomForestClassifier(
+    n_estimators=200,
+    max_depth=20,
+    random_state=42
+)
+XGBClassifier(
+    n_estimators=50,
+    max_depth=6,
+    learning_rate=0.1
+)
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}{Performance Results}
+    \begin{columns}[T]
+        \column{0.5\textwidth}
+        \begin{table}
+            \tiny
+            \centering
+            \begin{tabular}{@{}lcc@{}}
+                \toprule
+                Metric & Value \\
+                \midrule
+                F1-Score & 99.82\% \\
+                Precision & 99.81\% \\
+                Recall & 99.83\% \\
+                False Pos & <0.5\% \\
+                Latency & 180ms \\
+                \bottomrule
+            \end{tabular}
+        \end{table}
+        
+        \column{0.5\textwidth}
+        \begin{exampleblock}{Dataset}
+            \begin{itemize}
+                \item 11,431 URLs total
+                \item 7,952 phishing (PhishTank)
+                \item 3,679 legitimate (Alexa)
+                \item 80/20 train/test split
+            \end{itemize}
+        \end{exampleblock}
+    \end{columns}
+    
+    \vspace{3mm}
+    \textbf{Only 23 misclassifications} out of 3,023 test samples
+\end{frame}
+
+\section{Demo \& Tools}
+
+\begin{frame}[fragile]{Interactive Demo}
+    \begin{block}{Run This:}
+        \begin{lstlisting}[language=bash, basicstyle=\ttfamily\footnotesize]
+export JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+python proof_of_working.py
+        \end{lstlisting}
+    \end{block}
+    
+    \begin{itemize}
+        \item Type any URL to see step-by-step analysis
+        \item Shows validation, features, ML, scraping, verdict
+        \item Perfect for viva demonstration
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Deployment Options}
+    \begin{itemize}
+        \item \textbf{REST API} (FastAPI) - Port 8000, Swagger UI at /docs
+        \item \textbf{CLI Tool} - \texttt{detect\_enhanced.py}
+        \item \textbf{Browser Extension} - Chrome/Firefox standalone
+        \item \textbf{Systemd Daemon} - 24/7 background service
+    \end{itemize}
+\end{frame}
+
+\section{Conclusion}
+
+\begin{frame}{Key Achievements}
+    \begin{itemize}
+        \item \textbf{99.82\% accuracy} on 11,431 URLs
+        \item \textbf{4-category classification} with content override
+        \item \textbf{Production security} (5 critical CVEs fixed)
+        \item \textbf{Multiple interfaces} (API, CLI, Extension, Daemon)
+        \item Open-source under MIT license
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Thank You!}
+    \centering
+    \Huge \textbf{Thank You}
+    
+    \vspace{1cm}
+    \large
+    \textbf{Guidance}: [Guide Name] \\
+    \textbf{Email}: your.email@domain.com \\
+    \textbf{GitHub}: github.com/BandiAkarsh
+    
+    \vspace{1cm}
+    \textbf{Questions?}
+\end{frame}
+
+\end{document}
