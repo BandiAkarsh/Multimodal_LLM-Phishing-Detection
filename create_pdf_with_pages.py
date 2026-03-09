@@ -303,9 +303,9 @@ def page_number(canvas, doc):
     canvas.saveState()
     canvas.setFont("Helvetica", 9)
     canvas.setFillColor(colors.gray)
-    # Start showing page numbers from page 2 (Introduction)
-    if doc.page > 1:
-        canvas.drawRightString(200*mm, 10*mm, f"Page {doc.page - 1}")
+    # Start showing page numbers from page 4 (Introduction) - which becomes page 1
+    if doc.page >= 4:
+        canvas.drawRightString(200*mm, 10*mm, f"Page {doc.page - 3}")
     canvas.restoreState()
 
 doc.build(story, onFirstPage=page_number, onLaterPages=page_number)
