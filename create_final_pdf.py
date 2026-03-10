@@ -103,8 +103,7 @@ story.append(Spacer(1, 20*mm))
 story.append(Paragraph("<b>A Complete Guide for Understanding, Using, and Extending the System</b>", body_style))
 story.append(Spacer(1, 15*mm))
 story.append(Paragraph("<b>Project:</b> IEEE Final Year Engineering Project", body_style))
-story.append(Paragraph("<b>Student:</b> Akarsh Bandi", body_style))
-story.append(Paragraph("<b>Institution:</b> Final Year Engineering", body_style))
+story.append(Paragraph("<b>Institution:</b> Sai Ganapati Engineering College", body_style))
 story.append(Paragraph("<b>Date:</b> March 2026", body_style))
 story.append(Paragraph("<b>Version:</b> 2.0 (Production Ready)", body_style))
 story.append(Spacer(1, 15*mm))
@@ -116,28 +115,28 @@ story.append(Paragraph("Table of Contents", title_style))
 story.append(Spacer(1, 8*mm))
 toc_items = [
     ("1.", "Introduction", "1"),
-    ("2.", "Understanding Phishing Attacks", "3"),
-    ("3.", "Problem Statement and Research Gap", "5"),
-    ("4.", "Project Objectives and Scope", "7"),
-    ("5.", "Complete System Architecture Overview", "9"),
-    ("6.", "Dataset Description and Data Sources", "12"),
-    ("7.", "Feature Engineering: The 93 ML Features", "16"),
-    ("8.", "Machine Learning Models and Training", "22"),
-    ("9.", "MLLM Integration: Qwen2.5 for AI Phishing Detection", "28"),
-    ("10.", "REST API Service Architecture", "34"),
-    ("11.", "Browser Extension Implementation", "39"),
-    ("12.", "Desktop Application (Tauri)", "44"),
-    ("13.", "Security Implementation Details", "49"),
-    ("14.", "Advanced Detection Techniques", "55"),
-    ("15.", "Performance Metrics and Evaluation", "60"),
-    ("16.", "Testing and Quality Assurance", "65"),
-    ("17.", "Deployment Guide", "70"),
-    ("18.", "Future Enhancements and Research Directions", "75"),
-    ("19.", "Conclusion", "80"),
-    ("20.", "References and Resources", "83"),
-    ("A.", "Appendix A: Project Directory Structure", "86"),
-    ("B.", "Appendix B: Technology Stack Details", "87"),
-    ("C.", "Appendix C: API Quick Reference", "88"),
+    ("2.", "Understanding Phishing Attacks", "2"),
+    ("3.", "Problem Statement and Research Gap", "3"),
+    ("4.", "Project Objectives and Scope", "4"),
+    ("5.", "Complete System Architecture Overview", "6"),
+    ("6.", "Dataset Description and Data Sources", "8"),
+    ("7.", "Feature Engineering: The 93 ML Features", "10"),
+    ("8.", "Machine Learning Models and Training", "12"),
+    ("9.", "MLLM Integration: Qwen2.5 for AI Phishing Detection", "14"),
+    ("10.", "REST API Service Architecture", "16"),
+    ("11.", "Browser Extension Implementation", "18"),
+    ("12.", "Desktop Application (Tauri)", "20"),
+    ("13.", "Security Implementation Details", "22"),
+    ("14.", "Advanced Detection Techniques", "23"),
+    ("15.", "Performance Metrics and Evaluation", "24"),
+    ("16.", "Testing and Quality Assurance", "26"),
+    ("17.", "Deployment Guide", "27"),
+    ("18.", "Future Enhancements and Research Directions", "29"),
+    ("19.", "Conclusion", "30"),
+    ("20.", "References and Resources", "31"),
+    ("A.", "Appendix A: Project Directory Structure", "32"),
+    ("B.", "Appendix B: Technology Stack Details", "33"),
+    ("C.", "Appendix C: API Quick Reference", "34"),
 ]
 for num, title, page in toc_items:
     dot_count = 68 - len(num) - len(title) - len(page)
