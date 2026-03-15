@@ -19,34 +19,30 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Generate changelog
-      id: changelog
-      run: |
-        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-        git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD~1)..HEAD >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+      with:
+        ref: ${{ github.ref_name }}
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         body: |
-          ## What's Changed
-          ${{ steps.changelog.outputs.CHANGELOG }}
-
-          ## Docker Image
+          ## Phishing Guard Desktop v1.0.0
+          
+          A standalone phishing detection desktop application that runs in the background.
+          
+          ### Features:
+          - Background email scanning (Thunderbird + OAuth)
+          - System tray support
+          - Real-time phishing detection
+          - Same 4-tier detection as parent project
+          
+          ### Quick Start:
           ```bash
-          docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}
-          ```
-
-          ## Quick Start
-          ```bash
-          # Run the API server
-          docker run -p 8000:8000 ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          chmod +x phishing-guard-desktop
+          ./phishing-guard-desktop
           ```
         draft: false
-        prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+        prerelease: false
 
   # ==========================================
   # Build and Attach Assets
@@ -54,34 +50,24 @@ jobs:
   build-assets:
     name: Build Release Assets
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            asset_name: phishing-guard-linux
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            asset_name: phishing-guard-windows
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            asset_name: phishing-guard-macos
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Create source archive
       run: |
-        tar -czf phishing-guard-source-${{ github.ref_name }}.tar.gz \
-          --exclude='.git' \
-          --exclude='__pycache__' \
-          --exclude='*.pyc' \
-          --exclude='.pytest_cache' \
-          --exclude='mlruns' \
-          .
+        echo "Creating source archive..."
+        tar --exclude='.git' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.pytest_cache' \
+            --exclude='mlruns' \
+            -czf phishing-guard-source.tar.gz .
+        echo "Archive created"
+        ls -la phishing-guard-source.tar.gz
 
     - name: Upload source archive
       uses: softprops/action-gh-release@v1
       with:
-        files: phishing-guard-source-${{ github.ref_name }}.tar.gz
+        files: phishing-guard-source.tar.gz
