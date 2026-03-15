@@ -291,15 +291,10 @@ class ToolkitSignatureDetector:
                 score += 0.2
                 signatures.append(f"JavaScript: {pattern[:30]}...")
 
-        # Check form structure (Gophish uses standard form with username/password)
-        forms = soup.find_all("form")
-        for form in forms:
-            inputs = form.find_all("input")
-            input_names = [inp.get("name", "").lower() for inp in inputs]
-            if "username" in input_names and "password" in input_names:
-                if "rid" in url.lower() or len(inputs) <= 3:
-                    score += 0.4
-                    signatures.append("Standard Gophish form structure")
+        # Check form structure - REMOVED overly aggressive check
+        # The old logic caused false positives on legitimate sites like Amazon
+        # because username/password fields are standard on ALL login pages
+        # Now only checks for actual Gophish-specific signatures
 
         return score, signatures
 
