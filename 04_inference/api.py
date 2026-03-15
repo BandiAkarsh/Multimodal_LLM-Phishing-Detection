@@ -42,9 +42,12 @@ import torch
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(project_root)
 
+# Add this directory to path for local imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import uvicorn
 
-# Import authentication
+# Import authentication (same directory)
 from auth import auth_manager, get_current_user, rate_limit_check, rate_limiter, verify_api_key_auth
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,21 +63,12 @@ from schemas import (
 )
 from service import PhishingDetectionService
 
-# Import security validation
-sys.path.append(os.path.join(project_root, "05_utils"))
+# Add 05_utils to path for security_validator and connectivity
+sys.path.insert(0, os.path.join(project_root, "05_utils"))
 from security_validator import URLSecurityValidator, validate_url_for_analysis
 
-# Import connectivity checker
-try:
-    sys.path.append(os.path.join(project_root, "05_utils"))
-    from connectivity import check_internet_connection, get_connectivity_status
-except ImportError:
-
-    def check_internet_connection():
-        return True
-
-    def get_connectivity_status():
-        return {"is_online": True, "mode": "online"}
+# Import connectivity checker (uses try/except for fallback)
+from connectivity import check_internet_connection, get_connectivity_status
 
 
 # Global service instance
@@ -309,13 +303,10 @@ async def check_connectivity():
 async def analyze_url(
     request: URLAnalysisRequest,
     req: Request,
-    user: dict = Depends(get_current_user),
     rate_ok: None = Depends(rate_limit_check),
 ):
     """
-    Analyze a single URL for phishing indicators (requires authentication).
-
-    **Authentication required:** Include JWT token in Authorization header.
+    Analyze a single URL for phishing indicators (PUBLIC - no auth required for demo).
 
     The API automatically chooses the best analysis method:
     - **Online**: Scrapes the website and analyzes actual content
@@ -327,7 +318,7 @@ async def analyze_url(
 
     Returns classification, confidence score, risk assessment, and explanation.
 
-    Rate limit: 100 requests per minute per user.
+    Rate limit: 100 requests per minute.
     """
     # Validate URL for security (SSRF protection)
     is_valid, error_msg = validate_url_for_analysis(request.url)
@@ -342,9 +333,6 @@ async def analyze_url(
         result = await phishing_service.analyze_url_async(
             request.url, force_mllm=request.force_scan
         )
-
-        # Add audit log (who scanned what)
-        print(f"[AUDIT] User {user.get('sub')} scanned URL: {request.url}")
 
         return URLAnalysisResponse(
             url=result["url"],
@@ -365,20 +353,17 @@ async def analyze_url(
 async def batch_analyze_urls(
     request: BatchURLAnalysisRequest,
     req: Request,
-    user: dict = Depends(get_current_user),
     rate_ok: None = Depends(rate_limit_check),
 ):
     """
-    Analyze multiple URLs for phishing indicators (requires authentication).
-
-    **Authentication required:** Include JWT token in Authorization header.
+    Analyze multiple URLs for phishing indicators (PUBLIC - no auth required for demo).
 
     Parameters:
     - **urls**: List of URLs to analyze (max 100)
 
     Returns batch results with summary statistics.
 
-    Rate limit: 100 requests per minute per user.
+    Rate limit: 100 requests per minute.
     """
     # Validate all URLs for security
     for url in request.urls:
@@ -451,18 +436,15 @@ async def batch_analyze_urls(
 async def extract_features(
     url: str,
     req: Request,
-    user: dict = Depends(get_current_user),
     rate_ok: None = Depends(rate_limit_check),
 ):
     """
-    Extract URL features without full classification (requires authentication).
-
-    **Authentication required:** Include JWT token in Authorization header.
+    Extract URL features without full classification (PUBLIC - no auth required for demo).
 
     Useful for debugging and understanding feature extraction.
     Returns raw URL features and calculated risk score.
 
-    Rate limit: 100 requests per minute per user.
+    Rate limit: 100 requests per minute.
     """
     if not phishing_service:
         raise HTTPException(status_code=503, detail="Service not initialized")

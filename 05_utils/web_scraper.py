@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import parse_qs, urlparse
@@ -26,11 +27,18 @@ from bs4 import BeautifulSoup
 from PIL import Image
 from playwright.async_api import async_playwright
 
+# Add project root to path for imports
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+# Add 05_utils to path
+_utils_path = os.path.dirname(os.path.abspath(__file__))
+if _utils_path not in sys.path:
+    sys.path.insert(0, _utils_path)
+
 # Import security validator for SSRF protection
-try:
-    from .security_validator import URLSecurityValidator, validate_url_for_analysis
-except ImportError:
-    from security_validator import URLSecurityValidator, validate_url_for_analysis
+from security_validator import URLSecurityValidator, validate_url_for_analysis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
