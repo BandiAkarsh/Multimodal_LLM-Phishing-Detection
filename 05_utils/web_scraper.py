@@ -237,6 +237,8 @@ class ToolkitSignatureDetector:
         generic_score, generic_sigs = cls._check_generic_kit(url, html, soup)
 
         # Determine the most likely toolkit
+        # Require MULTIPLE signatures to avoid false positives on legitimate sites
+        # Single signature matches (like "rid" param) are common on legitimate sites
         scores = [
             ("Gophish", gophish_score, gophish_sigs),
             ("HiddenEye", hiddeneye_score, hiddeneye_sigs),
@@ -250,7 +252,10 @@ class ToolkitSignatureDetector:
         scores.sort(key=lambda x: x[1], reverse=True)
         best_match = scores[0]
 
-        if best_match[1] >= 0.3:  # Threshold for detection
+        # Require MULTIPLE signatures (at least 2) to avoid false positives
+        # A single signature like "rid" is too common on legitimate sites
+        num_signatures = len(best_match[2]) if best_match[2] else 0
+        if best_match[1] >= 0.5 and num_signatures >= 2:
             result["detected"] = True
             result["toolkit_name"] = best_match[0]
             result["confidence"] = min(1.0, best_match[1])
