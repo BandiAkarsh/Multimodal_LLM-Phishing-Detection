@@ -33,8 +33,6 @@ Usage:
 import os
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 
 import torch
 
@@ -48,11 +46,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import uvicorn
 
 # Import authentication (same directory)
-from auth import auth_manager, get_current_user, rate_limit_check, rate_limiter, verify_api_key_auth
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
+from auth import auth_manager, get_current_user, rate_limit_check
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from schemas import (
     BatchURLAnalysisRequest,
     BatchURLAnalysisResponse,
@@ -63,13 +59,14 @@ from schemas import (
 )
 from service import PhishingDetectionService
 
+# Import connectivity checker (uses try/except for fallback)
 # Add 05_utils to path for security_validator and connectivity
 sys.path.insert(0, os.path.join(project_root, "05_utils"))
-from security_validator import URLSecurityValidator, validate_url_for_analysis
 
-# Import connectivity checker (uses try/except for fallback)
 from connectivity import check_internet_connection, get_connectivity_status
 
+# Import security validator for SSRF protection
+from security_validator import validate_url_for_analysis
 
 # Global service instance
 phishing_service = None
@@ -103,13 +100,13 @@ app = FastAPI(
     title="Phishing Detection API",
     description="""
     Multimodal LLM-based phishing website detection service.
-    
+
     ## Features
     - **Internet-Aware Detection**: Automatically uses web scraping when online
     - **Static Fallback**: Uses URL heuristics when offline
     - **Typosquatting Detection**: Identifies brand impersonation attempts
     - **ML Classification**: 99.8% F1 Score on PhishTank dataset
-    
+
     ## Analysis Modes
     - `online`: Full web scraping + content analysis (most accurate)
     - `offline`: Static URL analysis (fallback when no internet)
@@ -207,15 +204,14 @@ async def login(credentials: dict):
     # Validate credentials are provided
     if not username or not password:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Username and password required"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Username and password required",
         )
-    
-    # Verify credentials (SECURITY FIX)
+
+    # Verify credentials
     if not auth_manager.verify_credentials(username, password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password"
         )
 
     # Generate token
@@ -495,7 +491,9 @@ def generate_self_signed_cert():
         )
 
     print("⚠️  WARNING: Generating self-signed certificate for DEVELOPMENT ONLY.")
-    print("   These certificates are NOT trusted by browsers and should NEVER be used in production.")
+    print(
+        "   These certificates are NOT trusted by browsers and should NEVER be used in production."
+    )
     print("   For production, obtain certificates from a trusted CA like Let's Encrypt.")
 
     # Create certificates directory
@@ -525,8 +523,8 @@ def generate_self_signed_cert():
         .issuer_name(issuer)
         .public_key(private_key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.utcnow())
-        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=365))
+        .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+        .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=365))
         .add_extension(
             x509.SubjectAlternativeName(
                 [
@@ -557,7 +555,7 @@ def generate_self_signed_cert():
     # Restrict key file permissions to owner read/write only
     key_path.chmod(0o600)
 
-    print(f"Generated self-signed certificates ( DEVELOPMENT ONLY! ):")
+    print("Generated self-signed certificates ( DEVELOPMENT ONLY! ):")
     print(f"  Certificate: {SSL_CERT_PATH}")
     print(f"  Private Key: {SSL_KEY_PATH} (permissions: 600)")
 
@@ -588,7 +586,7 @@ if __name__ == "__main__":
                 generate_self_signed_cert()
 
         print(f"Starting HTTPS server on https://{host}:{port}")
-        print(f"Note: If using self-signed certificates, you'll need to accept the browser warning.")
+        print("Note: If using self-signed certificates, you'll need to accept the browser warning.")
 
         uvicorn.run(
             "api:app",

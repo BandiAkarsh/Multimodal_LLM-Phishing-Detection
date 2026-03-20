@@ -12,15 +12,13 @@ Toolkit Detection Signatures:
 5. Evilginx2: Proxy-based, specific redirect patterns
 """
 
-import asyncio
 import io
 import json
 import logging
 import os
 import re
 import sys
-import time
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Optional, Set
 from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
@@ -32,13 +30,8 @@ _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-# Add 05_utils to path
-_utils_path = os.path.dirname(os.path.abspath(__file__))
-if _utils_path not in sys.path:
-    sys.path.insert(0, _utils_path)
-
 # Import security validator for SSRF protection
-from security_validator import URLSecurityValidator, validate_url_for_analysis
+from security_validator import validate_url_for_analysis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -327,7 +320,7 @@ class ToolkitSignatureDetector:
         for pattern in cls.HIDDENEYE_SIGNATURES["html_patterns"]:
             if re.search(pattern, html, re.IGNORECASE | re.DOTALL):
                 score += 0.3
-                signatures.append(f"HTML pattern detected")
+                signatures.append("HTML pattern detected")
 
         # Check meta patterns
         for pattern in cls.HIDDENEYE_SIGNATURES["meta_patterns"]:
@@ -538,11 +531,10 @@ class ToolkitSignatureDetector:
                 score += 0.2
                 signatures.append(f"Suspicious JS: {pattern[:25]}...")
 
-        # Check form fields
+            # Check form fields
         forms = soup.find_all("form")
         for form in forms:
             inputs = form.find_all("input")
-            input_names = [inp.get("name", "").lower() for inp in inputs]
             input_types = [inp.get("type", "").lower() for inp in inputs]
 
             # Check for password field with suspicious form
@@ -575,7 +567,10 @@ class WebScraper:
             self.context = await self.browser.new_context(
                 viewport={"width": 1920, "height": 1080},
                 ignore_https_errors=True,
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                ),
                 extra_http_headers={
                     "Accept-Language": "en-US,en;q=0.9",
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -632,14 +627,14 @@ class WebScraper:
 
             # Validate URL for SSRF protection before navigation
             is_valid, error_msg = validate_url_for_analysis(url)
-            
+
             if not is_valid:
-                logger.warning(f"URL blocked by SSRF protection: {error_msg}")
+                logger.warning("URL blocked by SSRF protection: %s", error_msg)
                 result["success"] = False
                 result["error"] = f"URL validation failed: {error_msg}"
                 result["classification"] = "BLOCKED"
                 return result
-            
+
             # Navigate to URL (Wait for DOMContentLoaded instead of NetworkIdle to prevent timeouts)
             response = await page.goto(url, timeout=30000, wait_until="domcontentloaded")
 
