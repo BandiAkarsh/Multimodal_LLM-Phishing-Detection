@@ -121,6 +121,7 @@ SPEC.md
 
 # Build & Demo Scripts
 demo.py
+final_demo.py
 proof_of_working.py
 setup_*.py
 start_api.sh
