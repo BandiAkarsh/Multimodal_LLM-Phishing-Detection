@@ -27,6 +27,7 @@ venv/
 
 # Temporary files
 .tmp/
+create*
 
 # Models
 02_models/
