@@ -20,11 +20,10 @@ venv/
 *.ipynb
 
 # Data (large files - consider using Git LFS)
-01_data/processed/screenshots/*.png
-01_data/processed/html/*.html
+01_data/processed/
+01_data/splits/
 01_data/raw/*.csv
 01_data/raw/*.txt
-01_data/splits/train.csv
 
 # Temporary files
 .tmp/
@@ -59,9 +58,57 @@ model_metrics.json
 # Tauri Build Artifacts
 gui-tauri/dist/
 gui-tauri/node_modules/
-gui-tauri/package-lock.json
 gui-tauri/src-tauri/Cargo.lock
 gui-tauri/src-tauri/build.rs
 gui-tauri/src-tauri/gen/
 gui-tauri/src-tauri/icons/
 gui-tauri/src-tauri/target/
+
+# Generated Images (keep main diagrams)
+images/preview_*.png
+images/fixed_*.png
+images/proper_*.png
+images/final_page*.png
+images/acknowledgement_*.png
+images/certificate_*.png
+
+# Generated Reports & PDFs
+*.pdf
+*.odt
+
+# Report Generation Scripts
+chapter*.py
+create_*pdf.py
+rebuild_pdf*.py
+analyze*.sh
+exact_format_extraction.sh
+fast_analysis.sh
+generate_complete_report.py
+create_detailed_pdf.py
+create_images*.py
+insert_diagrams.py
+uml_diagrams*.py
+front_matter.py
+edit_front_matter.py
+fix_front_matter.py
+add_page_numbers.py
+toc_index_lof.pdf
+create_proper_front_matter.py
+create_toc_index_lof.py
+edit_final.py
+update_final_pdf.py
+diagrams_matplotlib.py
+render_plantuml.py
+test_pdf.py
+
+# Temp & Preview Directories
+odt_preview/
+odt_preview_new/
+memory/
+diagram_prompts/
+plantuml/
+viva/
+
+# Misc
+texput.log
+SPEC.md
