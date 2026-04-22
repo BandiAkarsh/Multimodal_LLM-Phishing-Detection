@@ -113,6 +113,7 @@ plantuml/
 docs/
 viva/
 scripts/
+release/
 
 # Misc
 texput.log
@@ -125,3 +126,7 @@ setup_*.py
 start_api.sh
 test_project.sh
 email_scanner.py
+gui-tauri/package-lock.json
+
+# Generated images
+images/
