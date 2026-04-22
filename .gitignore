@@ -108,8 +108,20 @@ odt_preview_new/
 memory/
 diagram_prompts/
 plantuml/
+
+# Internal Docs & Resources (not for repo)
+docs/
 viva/
+scripts/
 
 # Misc
 texput.log
 SPEC.md
+
+# Build & Demo Scripts
+demo.py
+proof_of_working.py
+setup_*.py
+start_api.sh
+test_project.sh
+email_scanner.py
