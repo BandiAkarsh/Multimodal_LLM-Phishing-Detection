@@ -607,7 +607,7 @@ async function checkURL(url) {
 
 ## 📞 Support
 
-- **Issues:** [GitHub Issues](https://github.com/BandiAkarsh/phishing_detection_project/issues)
+- **GitHub:** [BandiAkarsh](https://github.com/BandiAkarsh)
 - **Email:** akarshbandi82@gmail.com
 
 ---
