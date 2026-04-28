@@ -68,6 +68,13 @@ from connectivity import check_internet_connection, get_connectivity_status
 # Import security validator for SSRF protection
 from security_validator import validate_url_for_analysis
 
+# Import monitoring router
+try:
+    from monitoring_api import router as monitoring_router
+    monitoring_available = True
+except ImportError:
+    monitoring_available = False
+
 # Global service instance
 phishing_service = None
 
@@ -149,6 +156,12 @@ async def security_headers(request: Request, call_next):
         response.headers["X-RateLimit-Remaining"] = str(request.state.rate_limit_remaining)
 
     return response
+
+
+# Include monitoring router if available
+if monitoring_available:
+    app.include_router(monitoring_router)
+    print("Monitoring endpoints enabled")
 
 
 @app.get("/", tags=["Health"])
