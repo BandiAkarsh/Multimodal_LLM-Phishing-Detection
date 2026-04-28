@@ -53,6 +53,8 @@ redis>=5.0.0     # Distributed rate limiting and caching (optional)
 # Chat Interface (Streamlit)
 streamlit>=1.28.0
 streamlit-chat>=0.1.0
+plotly>=5.18.0
+pandas>=2.0.0
 
 # Development Dependencies (install with: pip install -r requirements-dev.txt)
 # pre-commit>=3.6.0
