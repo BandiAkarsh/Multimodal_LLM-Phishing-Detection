@@ -964,3 +964,62 @@ class PhishingDetectionService:
             return "Suspicious indicators: " + "; ".join(issues)
         else:
             return "No obvious phishing indicators based on URL structure."
+
+    def explain_detection(
+        self,
+        url: str,
+        classification: str,
+        confidence: float,
+        features: Dict[str, Any],
+        use_llm: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Generate human-readable explanation for a detection result.
+        
+        Args:
+            url: The analyzed URL
+            classification: Classification result
+            confidence: Confidence score (0-1)
+            features: Dictionary of extracted features
+            use_llm: Whether to use LLM for explanation
+            
+        Returns:
+            Dictionary containing explanation and supporting details
+        """
+        try:
+            # Import here to avoid loading if not needed
+            if use_llm:
+                from explainability import ExplainabilityEngine
+                explainer = ExplainabilityEngine()
+            else:
+                from explainability import LightweightExplainer
+                explainer = LightweightExplainer()
+            
+            # Get additional context from service
+            ml_prediction = {
+                "prediction": classification,
+                "probability": confidence,
+            }
+            
+            # Generate explanation
+            result = explainer.explain_detection(
+                url=url,
+                classification=classification,
+                confidence=confidence,
+                features=features,
+                ml_prediction=ml_prediction,
+            )
+            
+            return result
+            
+        except Exception as e:
+            # Fallback to basic explanation
+            return {
+                "url": url,
+                "classification": classification,
+                "confidence": confidence,
+                "explanation": f"This URL was classified as {classification} with {confidence*100:.1f}% confidence.",
+                "key_factors": [],
+                "recommendations": ["Exercise caution with unknown URLs"],
+                "error": str(e),
+            }

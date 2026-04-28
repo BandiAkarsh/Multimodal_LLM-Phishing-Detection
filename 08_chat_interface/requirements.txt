@@ -1,0 +1,6 @@
+# Chat Interface Dependencies
+# Install: pip install -r requirements.txt
+
+streamlit>=1.28.0
+streamlit-chat>=0.1.0
+requests>=2.31.0
