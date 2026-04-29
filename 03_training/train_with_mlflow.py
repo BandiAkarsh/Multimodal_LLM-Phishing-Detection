@@ -24,7 +24,6 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from sklearn.preprocessing import StandardScaler
 import joblib
 import warnings
-import torch
 warnings.filterwarnings('ignore')
 
 # Add project root to path
@@ -38,28 +37,36 @@ from feature_extraction import URLFeatureExtractor
 # Import model manager
 from model_manager import ModelManager
 
-# Auto-detect GPU and use PyTorch for GPU training
+# ==========================================================================
+# HARDWARE DETECTION (Smart like setup_project.py)
+# ==========================================================================
+
+# Default: CPU mode
 USE_GPU = False
 DEVICE = "cpu"
+TORCH_AVAILABLE = False
 
-if torch.cuda.is_available():
-    USE_GPU = True
-    DEVICE = torch.device("cuda:0")
-    gpu_name = torch.cuda.get_device_name(0)
-    gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
-    print(f"🚀 GPU detected: {gpu_name}")
-    print(f"   VRAM: {gpu_memory:.1f} GB")
-    print(f"   Using PyTorch on GPU for training")
-else:
-    print("📊 Using CPU (PyTorch/scikit-learn)")
+# Only import torch if we might need it (save resources)
+try:
+    import torch
+    TORCH_AVAILABLE = True
+    
+    if torch.cuda.is_available():
+        USE_GPU = True
+        DEVICE = torch.device("cuda:0")
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        print(f"🚀 GPU detected: {gpu_name}")
+        print(f"   VRAM: {gpu_memory:.1f} GB")
+        print(f"   CUDA: {torch.version.cuda}")
+        print(f"   Using PyTorch on GPU for training")
+    else:
+        print("📊 No GPU detected - using CPU (PyTorch/scikit-learn)")
+except ImportError:
+    print("📊 PyTorch not installed - using scikit-learn (CPU only)")
 
-# Import scikit-learn as fallback
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-
-
-# PyTorch Neural Network for GPU training
-if USE_GPU:
+# Only define PyTorch NN if GPU is available (save resources)
+if USE_GPU and TORCH_AVAILABLE:
     class PhishingNN(torch.nn.Module):
         """Neural network for phishing detection on GPU."""
         def __init__(self, input_size):
@@ -79,7 +86,7 @@ if USE_GPU:
 
 
 def train_pytorch_model(model_class, X_train, y_train, X_test, y_test, epochs=50, lr=0.001):
-    """Train a PyTorch neural network on GPU."""
+    """Train a PyTorch neural network on GPU (only called if GPU exists)."""
     input_size = X_train.shape[1]
     model = model_class(input_size).to(DEVICE)
     
@@ -113,6 +120,11 @@ def train_pytorch_model(model_class, X_train, y_train, X_test, y_test, epochs=50
         _, predicted = torch.max(test_outputs, 1)
     
     return predicted.cpu().numpy(), model
+
+
+# Import scikit-learn as fallback (always available)
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
 
 
 def load_dataset():
