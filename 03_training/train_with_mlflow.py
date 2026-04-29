@@ -20,12 +20,11 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score, precision_score, recall_score
 from sklearn.preprocessing import StandardScaler
 import joblib
 import warnings
+import torch
 warnings.filterwarnings('ignore')
 
 # Add project root to path
@@ -38,6 +37,82 @@ from feature_extraction import URLFeatureExtractor
 
 # Import model manager
 from model_manager import ModelManager
+
+# Auto-detect GPU and use PyTorch for GPU training
+USE_GPU = False
+DEVICE = "cpu"
+
+if torch.cuda.is_available():
+    USE_GPU = True
+    DEVICE = torch.device("cuda:0")
+    gpu_name = torch.cuda.get_device_name(0)
+    gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3
+    print(f"🚀 GPU detected: {gpu_name}")
+    print(f"   VRAM: {gpu_memory:.1f} GB")
+    print(f"   Using PyTorch on GPU for training")
+else:
+    print("📊 Using CPU (PyTorch/scikit-learn)")
+
+# Import scikit-learn as fallback
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+
+
+# PyTorch Neural Network for GPU training
+if USE_GPU:
+    class PhishingNN(torch.nn.Module):
+        """Neural network for phishing detection on GPU."""
+        def __init__(self, input_size):
+            super().__init__()
+            self.net = torch.nn.Sequential(
+                torch.nn.Linear(input_size, 128),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(128, 64),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(0.3),
+                torch.nn.Linear(64, 2)  # 2 classes: legitimate, phishing
+            )
+        
+        def forward(self, x):
+            return self.net(x)
+
+
+def train_pytorch_model(model_class, X_train, y_train, X_test, y_test, epochs=50, lr=0.001):
+    """Train a PyTorch neural network on GPU."""
+    input_size = X_train.shape[1]
+    model = model_class(input_size).to(DEVICE)
+    
+    # Convert data to tensors
+    X_train_t = torch.FloatTensor(X_train).to(DEVICE)
+    y_train_t = torch.LongTensor(y_train).to(DEVICE)
+    X_test_t = torch.FloatTensor(X_test).to(DEVICE)
+    
+    # Loss and optimizer
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    
+    # Training loop
+    print(f"  Training PyTorch model for {epochs} epochs...")
+    for epoch in range(epochs):
+        model.train()
+        optimizer.zero_grad()
+        
+        outputs = model(X_train_t)
+        loss = criterion(outputs, y_train_t)
+        loss.backward()
+        optimizer.step()
+        
+        if (epoch + 1) % 10 == 0:
+            print(f"    Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}")
+    
+    # Predict
+    model.eval()
+    with torch.no_grad():
+        test_outputs = model(X_test_t)
+        _, predicted = torch.max(test_outputs, 1)
+    
+    return predicted.cpu().numpy(), model
 
 
 def load_dataset():
@@ -148,38 +223,61 @@ def train_and_log_model(features_df, model_manager):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Train multiple models
-    models = {
-        'Random Forest': RandomForestClassifier(
-            n_estimators=200, 
-            max_depth=20,
-            min_samples_split=5,
-            random_state=42,
-            n_jobs=-1
-        ),
-        'Gradient Boosting': GradientBoostingClassifier(
-            n_estimators=100,
-            max_depth=5,
-            learning_rate=0.1,
-            random_state=42
-        ),
-        'Logistic Regression': LogisticRegression(
-            max_iter=1000,
-            random_state=42,
-            class_weight='balanced'
-        )
-    }
+    # Train multiple models (handle GPU vs CPU)
+    models = {}
+    
+    # PyTorch Neural Network (if GPU available)
+    if USE_GPU:
+        models['PyTorch NN (GPU)'] = PhishingNN
+        print(f"\n🚀 Added PyTorch Neural Network for GPU training")
+    
+    # Random Forest
+    models['Random Forest'] = RandomForestClassifier(
+        n_estimators=200, 
+        max_depth=20,
+        min_samples_split=5,
+        random_state=42,
+        n_jobs=-1  # scikit-learn only
+    )
+    
+    # Gradient Boosting
+    models['Gradient Boosting'] = GradientBoostingClassifier(
+        n_estimators=100,
+        max_depth=5,
+        learning_rate=0.1,
+        random_state=42
+    )
+    
+    # Logistic Regression
+    models['Logistic Regression'] = LogisticRegression(
+        max_iter=1000,
+        random_state=42,
+        class_weight='balanced'
+    )
+    
+    if USE_GPU:
+        print(f"\n🚀 Training with GPU acceleration (PyTorch)")
+    else:
+        print(f"\n💻 Training with CPU (scikit-learn)")
     
     best_model = None
     best_f1 = 0
     best_name = ""
+    best_pred = None
     
     for name, model in models.items():
         print(f"\n--- Training {name} ---")
         
-        # Train
-        model.fit(X_train_scaled, y_train)
-        y_pred = model.predict(X_test_scaled)
+        # Handle PyTorch models
+        if name == 'PyTorch NN (GPU)':
+            y_pred, trained_model = train_pytorch_model(
+                model, X_train_scaled, y_train, X_test_scaled, y_test, epochs=50
+            )
+            model = trained_model
+        else:
+            # Standard scikit-learn training
+            model.fit(X_train_scaled, y_train)
+            y_pred = model.predict(X_test_scaled)
         
         # Calculate metrics
         accuracy = accuracy_score(y_test, y_pred)
@@ -226,13 +324,20 @@ def train_and_log_model(features_df, model_manager):
             best_f1 = f1
             best_model = model
             best_name = name
+            best_pred = y_pred
     
     print(f"\n{'='*60}")
     print(f"BEST MODEL: {best_name} (F1 Score: {best_f1:.4f})")
     print(f"{'='*60}")
     
-    # Detailed report for best model
-    y_pred_best = best_model.predict(X_test_scaled)
+    # Get predictions for best model
+    if best_name == 'PyTorch NN (GPU)':
+        # Use best_pred from training loop
+        y_pred_best = best_pred
+    else:
+        # Standard scikit-learn prediction
+        y_pred_best = best_model.predict(X_test_scaled)
+    
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred_best, target_names=['Legitimate', 'Phishing']))
     
@@ -241,12 +346,21 @@ def train_and_log_model(features_df, model_manager):
     print(f"  TN: {cm[0][0]:5d}  FP: {cm[0][1]:5d}")
     print(f"  FN: {cm[1][0]:5d}  TP: {cm[1][1]:5d}")
     
+    # Calculate precision and recall for best model
+    best_precision = precision_score(y_test, y_pred_best, pos_label=1)
+    best_recall = recall_score(y_test, y_pred_best, pos_label=1)
+    
     # Save best model as primary and get run_id for registration
     print("\n📦 Logging best model to MLflow...")
     run_id = model_manager.log_model_training(
         model=best_model,
         model_name="phishing_classifier",  # Primary name
-        metrics={"f1_score": best_f1, "accuracy": accuracy_score(y_test, y_pred_best)},
+        metrics={
+            "f1_score": best_f1,
+            "accuracy": accuracy_score(y_test, y_pred_best),
+            "precision": best_precision,
+            "recall": best_recall,
+        },
         params={"model_type": best_name, "is_primary": True, "features_count": len(feature_cols)},
         X_train_sample=X_train_scaled[:10],
         feature_names=feature_cols,
